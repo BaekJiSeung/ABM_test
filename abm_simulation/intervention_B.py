@@ -53,7 +53,7 @@ height, width  = 11, 32
 
 # 열 = handwash 값들
 variable_name  = 'hcw_wash_rate'
-variable_value = [0.70,0.80,0.90,0.95,1.00]   # 테스트면 [0.90, 0.95]
+variable_value = [0.91,0.93,0.97,0.99]   # 테스트면 [0.90, 0.95]
 
 # -------------------- beta 샘플링 --------------------
 beta_csv = os.path.join(base_dir, '..', 'data', 'B_samp_b.csv')
