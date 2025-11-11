@@ -40,12 +40,11 @@ fixed_params = {
     "height" : height, "width" : width 
     }
 
-variable_name = 'isolation_time'
-variable_value = [6,8,10,12,14]
+variable_name = 'prob_transmission'
+variable_value = [0.08,0.082,0.084,0.086,0.088,0.09]
 
 del fixed_params[variable_name]
 variable_params = {variable_name : variable_value}
-print(variable_params)
 
 start_time = time.time()
 
@@ -406,7 +405,7 @@ print("summary saved ->", summary_path)
 
 # %%
 data_type = 'B'
-num_iter = 1; np.int64(num_iter)
+num_iter = 50; np.int64(num_iter)
 
 # Parameters
 cleanDay = 180
@@ -433,7 +432,7 @@ fixed_params = {
     }
 
 variable_name = 'prob_transmission'
-variable_value = [0.0838]
+variable_value = [0.08,0.082,0.083,0.084,0.086,0.088]
 
 del fixed_params[variable_name]
 variable_params = {variable_name : variable_value}
