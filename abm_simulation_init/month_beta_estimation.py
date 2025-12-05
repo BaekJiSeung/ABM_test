@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 # %%
 data_type = 'A'
-num_iter = 50; np.int64(num_iter)
+num_iter = 40; np.int64(num_iter)
 
 # Parameters
 cleanDay = 180
@@ -41,7 +41,7 @@ fixed_params = {
     }
 
 variable_name = 'prob_transmission'
-variable_value = [0.07,0.08]
+variable_value = [0.0786]
 
 del fixed_params[variable_name]
 variable_params = {variable_name : variable_value}
@@ -86,7 +86,7 @@ for value in variable_value:
 emulated_data = df.values[0][0]
 
 print(emulated_data)
-# %%
+
 csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
     'result/emulation_beta_{}.csv'.format(data_type))
 if os.path.isfile(csv_path):
