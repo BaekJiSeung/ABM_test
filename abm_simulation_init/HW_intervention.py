@@ -43,7 +43,7 @@ fixed_params = {
     }
 
 variable_name = 'prob_transmission'
-variable_value = [0.01,0.03,0.05,0.07,0.09]
+variable_value = [0.07,0.08,0.09,0.10]
 
 del fixed_params[variable_name]
 variable_params = {variable_name : variable_value}

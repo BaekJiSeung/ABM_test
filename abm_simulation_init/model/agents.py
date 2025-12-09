@@ -181,8 +181,9 @@ class HCW(CPE_Agent):
                             if other.isolated:
                                 prob_transmission *= self.model.isolation_factor
                             infect = np.random.choice([1,0], p = [prob_transmission, 1-prob_transmission]) # note that we did not use self.model.prob_transmission
-                            
-                            self.colonized = True
+                            if infect ==1:
+                                self.colonized = True
+                           
                             """check if sick"""
                             if other.isPatient:
                                 self.testCRE(other)
