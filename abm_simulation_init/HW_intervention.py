@@ -10,6 +10,9 @@ import time
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning, message="No agent reporters*")
 
 
 # %%
@@ -38,12 +41,12 @@ fixed_params = {
     "hcw_wash_rate" : washrate, 
     "isolation_time" : isolationTime, 
     "height" : height, "width" : width,
-    "init_env": 5,
-    "tau_offset_days": 70 
+    "init_env": 10,
+    "tau_offset_days": 140
     }
 
 variable_name = 'prob_transmission'
-variable_value = [0.07,0.08,0.09,0.10]
+variable_value = [0.04308]
 
 del fixed_params[variable_name]
 variable_params = {variable_name : variable_value}
@@ -60,8 +63,8 @@ model = CPE_Model_month(
     hcw_wash_rate=washrate,
     isolation_time=isolationTime,
     height=height, width=width,
-    init_env=5,                 # [ADD] 초기 오염 개수 (예: 9)
-    tau_offset_days=70
+    init_env=10,                 # [ADD] 초기 오염 개수 (예: 9)
+    tau_offset_days=140
     )
 print('loading...\n\n')
 
@@ -216,6 +219,7 @@ else:
     summary_df.to_csv(summary_path, index=False)
 
 print("summary saved ->", summary_path)
+
 # %% ==============================================================
 
 
@@ -491,7 +495,4 @@ if os.path.isfile(csv_path):
 df.to_csv(csv_path)
 
 print("done!!")
-# %%
-bench
-
 # %%
