@@ -41,8 +41,8 @@ class CPE_Model_month(Model):
     isolation_factor, 
     cleaningDay, hcw_wash_rate, isolation_time , 
     height, width,
-    init_env=5,                 # [ADD] 초기 오염 개수 (예: 9)
-    tau_offset_days=70):       # [ADD] 대청소 주기 (기본 180일))
+    init_env=10,                 # [ADD] 초기 오염 개수 (예: 9)
+    tau_offset_days=140):       # [ADD] 대청소 주기 (기본 180일))
 
         self.num_HCWs = 10
         self.num_Patients = 30
