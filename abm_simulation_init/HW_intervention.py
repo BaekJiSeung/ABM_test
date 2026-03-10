@@ -403,7 +403,7 @@ print("summary saved ->", summary_path)
 
 
 # %% 여기서부터 B
-data_type = 'B'
+data_type = 'B_'
 num_iter = 50; np.int64(num_iter)
 
 # Parameters

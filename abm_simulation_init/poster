@@ -1,0 +1,129 @@
+\documentclass[final]{beamer}
+
+\usepackage[size=a1,scale=1.25]{beamerposter}
+
+\usetheme{default}
+\usepackage{graphicx}
+\usepackage{amsmath}
+
+\title{Surrogate Model for CRE Transmission}
+\author{Jiseung ???}
+\institute{School of Mathematics and Computing, Yonsei University}
+
+\begin{document}
+
+\begin{frame}{}
+
+\begin{columns}[t]
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% COLUMN 1
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\column{0.33\textwidth}
+
+\textbf{\Large Introduction}
+
+\begin{itemize}
+\item Carbapenem-resistant Enterobacteriaceae (CRE) are a major hospital infection risk.
+\item Agent-based models (ABM) simulate transmission dynamics in ICUs.
+\item However, ABM simulations are computationally expensive.
+\end{itemize}
+
+\bigskip
+
+\textbf{\Large ABM Model}
+
+\begin{itemize}
+\item Individual-level simulation of patient interactions
+\item Transmission probability parameter $\beta_{ABM}$
+\item Monthly incidence data generated
+\end{itemize}
+
+\bigskip
+
+\textbf{\Large Motivation}
+
+\begin{itemize}
+\item Fast inference for transmission parameters
+\item Build a surrogate model approximating ABM dynamics
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% COLUMN 2
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\column{0.33\textwidth}
+
+\textbf{\Large Method: SMoRe ParS}
+
+\begin{enumerate}
+\item Run ABM simulations
+\item Fit surrogate model
+\item Map parameters between models
+\end{enumerate}
+
+\bigskip
+
+\textbf{\Large Surrogate Model}
+
+Example difference equation:
+
+\[
+I_{t+1} = I_t + \beta_{SM} S_t I_t
+\]
+
+\bigskip
+
+\textbf{\Large Parameter Mapping}
+
+Goal:
+
+\[
+\beta_{ABM} \rightarrow \beta_{SM}
+\]
+
+Estimated using
+
+\begin{itemize}
+\item Maximum Likelihood Estimation
+\item Poisson likelihood
+\item AIC / BIC model comparison
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% COLUMN 3
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\column{0.33\textwidth}
+
+\textbf{\Large Results}
+
+\begin{center}
+\includegraphics[width=0.9\linewidth]{figures/result1.png}
+\end{center}
+
+\bigskip
+
+\textbf{\Large Additional Experiments}
+
+\begin{itemize}
+\item Sensitivity to initial conditions
+\item Different ABM parameter settings
+\end{itemize}
+
+\bigskip
+
+\textbf{\Large Conclusion}
+
+\begin{itemize}
+\item Surrogate model approximates ABM transmission dynamics
+\item Enables fast parameter estimation
+\item Useful for large-scale epidemiological studies
+\end{itemize}
+
+\end{columns}
+
+\end{frame}
+
+\end{document}

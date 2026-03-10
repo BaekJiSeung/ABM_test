@@ -76,7 +76,7 @@ class CPE_Model_month(Model):
             PI_counts = df['PI_counts'].astype(int).tolist()
             months = list(range(0, 30 * 36 + 1, 30)) # 2.5 yrs
             self.inflow_date = [x for x, n in zip(months, PI_counts) for _ in range(n)]
-            self.hospital_period = 14 # exp(1/lambda)
+            self.hospital_period = 7 # exp(1/lambda)
 
 
         self.prob_new_patient = prob_new_patient # geometric rv

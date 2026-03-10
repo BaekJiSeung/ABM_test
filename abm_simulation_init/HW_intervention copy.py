@@ -404,14 +404,14 @@ print("summary saved ->", summary_path)
 
 # %% 여기서부터 B
 data_type = 'B_'
-num_iter = 20; np.int64(num_iter)
+num_iter = 50; np.int64(num_iter)
 
 # Parameters
 cleanDay = 180
 washrate = 0.9
 isolationTime = 14
 init_envc = 2
-init_tau0 = 39
+init_tau0 = 40
 
 runtime = 30*36 # dont forget change A : 30 * 19, B : 30 * 36
 probNewPatient = 0.003 # 0.053, Old Calibration # 1/2000, 2592 ticks per day
@@ -435,7 +435,7 @@ fixed_params = {
     }
 
 variable_name = 'prob_transmission'
-variable_value = [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1]
+variable_value = [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09]
 
 del fixed_params[variable_name]
 variable_params = {variable_name : variable_value}
