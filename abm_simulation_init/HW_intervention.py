@@ -1,4 +1,5 @@
 # %%
+
 from model.cpe_model_month import CPE_Model_month
 from model.cpe_model_month import getHCWInfec
 from model.cpe_model_month import getTotalInfec
@@ -18,7 +19,8 @@ warnings.filterwarnings("ignore", category=UserWarning, message="No agent report
 # %%
 data_type = 'A'
 num_iter = 50; np.int64(num_iter)
-
+init_envc = 10
+init_tau0 = 140 
 # Parameters
 cleanDay = 180
 washrate = 0.9
@@ -41,8 +43,8 @@ fixed_params = {
     "hcw_wash_rate" : washrate, 
     "isolation_time" : isolationTime, 
     "height" : height, "width" : width,
-    "init_env": 10,
-    "tau_offset_days": 140
+    "init_env": init_envc,
+    "tau_offset_days": init_tau0
     }
 
 variable_name = 'prob_transmission'
@@ -63,8 +65,8 @@ model = CPE_Model_month(
     hcw_wash_rate=washrate,
     isolation_time=isolationTime,
     height=height, width=width,
-    init_env=10,                 # [ADD] 초기 오염 개수 (예: 9)
-    tau_offset_days=140
+    init_env=init_envc,                 # [ADD] 초기 오염 개수 (예: 10)
+    tau_offset_days=init_tau0
     )
 print('loading...\n\n')
 
@@ -119,7 +121,7 @@ df = run_data.pivot_table(
 ).reset_index(drop=True)
 
 print(df.head())
-
+# %%
 # --- 저장 (경로 안전 처리) ---
 try:
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -127,12 +129,12 @@ except NameError:
     base_dir = os.getcwd()
 
 os.makedirs(os.path.join(base_dir, '..', 'result'), exist_ok=True)
-csv_path = os.path.join(base_dir, '..', f'result/emulation_beta_{data_type}.csv')
+csv_path = os.path.join(base_dir, '..', f'result/emulation_beta_{data_type}{init_envc}{init_tau0}.csv')
 df.to_csv(csv_path, index=False)
 print("done!! ->", csv_path)
 
 
-#  ===================== RAW + SUMMARY 저장 =====================
+# %%  ===================== RAW + SUMMARY 저장 =====================
 import os, math, ast
 import pandas as pd
 import numpy as np
@@ -221,20 +223,6 @@ else:
 print("summary saved ->", summary_path)
 
 # %% ==============================================================
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -411,7 +399,10 @@ print("summary saved ->", summary_path)
 
 
 
-# %%
+
+
+
+# %% 여기서부터 B
 data_type = 'B'
 num_iter = 50; np.int64(num_iter)
 
@@ -419,6 +410,8 @@ num_iter = 50; np.int64(num_iter)
 cleanDay = 180
 washrate = 0.9
 isolationTime = 14
+init_envc = 2
+init_tau0 = 40
 
 runtime = 30*36 # dont forget change A : 30 * 19, B : 30 * 36
 probNewPatient = 0.003 # 0.053, Old Calibration # 1/2000, 2592 ticks per day
@@ -436,11 +429,13 @@ fixed_params = {
     "cleaningDay" : cleanDay,
     "hcw_wash_rate" : washrate, 
     "isolation_time" : isolationTime, 
-    "height" : height, "width" : width 
+    "height" : height, "width" : width,
+    "init_env": init_envc,
+    "tau_offset_days": init_tau0 
     }
 
 variable_name = 'prob_transmission'
-variable_value = [0.08,0.082,0.083,0.084,0.086,0.088]
+variable_value = [0.01,0.02,0.03,0.04,0.05,0.06,0.07,0.08,0.09,0.1]
 
 del fixed_params[variable_name]
 variable_params = {variable_name : variable_value}
@@ -456,7 +451,9 @@ model = CPE_Model_month(
     cleaningDay=cleanDay,
     hcw_wash_rate=washrate,
     isolation_time=isolationTime,
-    height=height, width=width
+    height=height, width=width,
+    init_env= init_envc,
+    tau_offset_days= init_tau0
     )
 print('loading...\n\n')
 
@@ -478,6 +475,35 @@ print('now run')
 # for _ in range(num_iter):
 batch_run.run_all()
 run_data = batch_run.get_model_vars_dataframe()
+
+# 베타별 series 뽑기
+series_map = {}
+lengths = []
+for b in variable_value:
+    s = run_data.query(f"{variable_name}=={b}")["HCW_related_infecs"].reset_index(drop=True)
+    series_map[b] = s
+    lengths.append(len(s))
+
+# "블록 스택" 형태로 DataFrame 만들기: (다른 열은 빈칸)
+total_rows = sum(lengths)
+out_df = pd.DataFrame(index=range(total_rows), columns=variable_value, dtype=object)
+
+start = 0
+for b in variable_value:
+    s = series_map[b]
+    out_df.loc[start:start+len(s)-1, b] = s.values
+    start += len(s)
+
+# 저장
+#%%
+csv_path = os.path.join(base_dir, '..', f'result/emulation_beta_{data_type}{init_envc}{init_tau0}.csv')
+
+out_df.to_csv(csv_path, index=False)
+print("done!! ->", csv_path)
+
+
+
+# %%
 df = pd.DataFrame()
 for value in variable_value:
     temp = run_data.query('{}=={}'.format(variable_name,value))['HCW_related_infecs']
@@ -485,9 +511,16 @@ for value in variable_value:
 emulated_data = df.values[0][0]
 
 print(emulated_data)
+try:
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    base_dir = os.getcwd()
 
+os.makedirs(os.path.join(base_dir, '..', 'result'), exist_ok=True)
 csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
     'result/emulation_beta_{}.csv'.format(data_type))
+csv_path = os.path.join(base_dir, '..', f'result/emulation_beta_{data_type}{init_envc}{init_tau0}.csv')
+
 if os.path.isfile(csv_path):
     saved_df = pd.read_csv(csv_path,index_col=0)
     saved_df.columns = variable_value

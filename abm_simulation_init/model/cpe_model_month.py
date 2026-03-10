@@ -41,8 +41,8 @@ class CPE_Model_month(Model):
     isolation_factor, 
     cleaningDay, hcw_wash_rate, isolation_time , 
     height, width,
-    init_env=10,                 # [ADD] 초기 오염 개수 (예: 9)
-    tau_offset_days=140):       # [ADD] 대청소 주기 (기본 180일))
+    init_env,                 # [ADD] 초기 오염 개수 (예: 9)
+    tau_offset_days):       # [ADD] 대청소 주기 (기본 180일))
 
         self.num_HCWs = 10
         self.num_Patients = 30
@@ -74,9 +74,9 @@ class CPE_Model_month(Model):
             'data/dataB_per_months.csv')
             df = pd.read_csv(csv_path, usecols=['PI_counts'])
             PI_counts = df['PI_counts'].astype(int).tolist()
-            months = list(range(0, 30 * 30 + 1, 30)) # 2.5 yrs
+            months = list(range(0, 30 * 36 + 1, 30)) # 2.5 yrs
             self.inflow_date = [x for x, n in zip(months, PI_counts) for _ in range(n)]
-            self.hospital_period = 16 # exp(1/lambda)
+            self.hospital_period = 14 # exp(1/lambda)
 
 
         self.prob_new_patient = prob_new_patient # geometric rv
