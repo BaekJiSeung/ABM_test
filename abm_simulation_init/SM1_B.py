@@ -228,9 +228,10 @@ def simulate_theta(beta, init_env, tau0,
 
 
 # ===== 테스트 =====
-theta = 3.35
-init_env = 10
-tau0 = 140   # 청소 후 30일 지난 시점에서 시작한다고 가정
+theta = 3.29
+
+init_env = 2
+tau0 = 40   # 청소 후 30일 지난 시점에서 시작한다고 가정
 
 days, daily_inc, monthly_df, comp_df = simulate_theta(theta, init_env, tau0)
 
@@ -327,7 +328,7 @@ for th in theta_grid:
                 best_ll = ll
                 best_params = (th, init_env, tau0)
                 print(th,init_env,tau0)
-# %%
+
 best_theta, best_init, best_tau0 = best_params
 print("best theta:", best_theta)
 print("best init_env:", best_init)
@@ -369,9 +370,9 @@ def aic_bic(theta, init_env, tau0, k=3):
 
 
 # ===== 사용 예시 =====
-theta_test   = 3.45
-init_env_test = 2
-tau0_test    = 70    # 마지막 청소 직후라고 가정
+theta_test   = 3.35
+init_env_test = 10
+tau0_test    = 140    # 마지막 청소 직후라고 가정
 
 ll, aic, bic = aic_bic(theta_test, init_env_test, tau0_test)
 print("loglik:", ll)
