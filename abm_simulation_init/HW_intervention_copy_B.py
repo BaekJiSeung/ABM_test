@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore", category=UserWarning, message="No agent report
 
 # %% 여기서부터 B
 data_type = 'B'
-num_iter = 50; np.int64(num_iter)
+num_iter = 1; np.int64(num_iter)
 
 # Parameters
 cleanDay = 180
@@ -48,9 +48,9 @@ fixed_params = {
     "init_env": init_envc,
     "tau_offset_days": init_tau0 
     }
-
+# A처럼 여기를 수정하면 원하는 파라미터에 대한 인터벤션 가능
 variable_name = 'prob_transmission'
-variable_value = [0.02,0.025,0.03,0.035,0.04,0.045,0.05]
+variable_value = [0.02]
 beta_tag1 = variable_value[0]
 beta_tag2 = variable_value[-1]
 del fixed_params[variable_name]
@@ -116,10 +116,11 @@ try:
     base_dir = os.path.dirname(os.path.abspath(__file__))
 except NameError:
     base_dir = os.getcwd()
-csv_path = os.path.join(base_dir, '..', f'result/emulation_beta_{data_type}{init_envc}{init_tau0}_lambda_{beta_tag1}-{beta_tag2}.csv')
+csv_path = os.path.join(base_dir, '..', f'result/interv_{variable_name}_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv')
 
 out_df.to_csv(csv_path, index=False)
 print("done!! ->", csv_path)
+
 
 
 
@@ -139,8 +140,7 @@ except NameError:
 os.makedirs(os.path.join(base_dir, '..', 'result'), exist_ok=True)
 csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
     'result/emulation_beta_{}.csv'.format(data_type))
-csv_path = os.path.join(base_dir, '..', f'result/emulation_beta_{data_type}{init_envc}{init_tau0}.csv')
-
+csv_path = os.path.join(base_dir, '..', f'result/interv_{variable_name}_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv')
 if os.path.isfile(csv_path):
     saved_df = pd.read_csv(csv_path,index_col=0)
     saved_df.columns = variable_value
@@ -151,7 +151,8 @@ print("done!!")
 
 
 # %%
-# %%# %% RAW Summarry 인데 람다수정버전(일별로나오네 이걸 월별로바꿔보자)
+# %% interv raw 파일을 Summary (월별로 나오게끔)
+
 import os
 import ast
 import numpy as np
@@ -160,7 +161,8 @@ import pandas as pd
 # -----------------------------
 # 설정
 # -----------------------------
-csv_path = "../result/emulation_beta_B240_0.04-0.04.csv"   # 파일명 맞게 수정
+# 파일명 맞게 수정
+# csv_path = "../result/emulation_beta_B240_0.04-0.04.csv"  
 data_type = "B"                                  # A or B
 days_per_month = 30
 
@@ -258,7 +260,8 @@ print(summary_df.head())
 # -----------------------------
 # 저장
 # -----------------------------
-out_path = f"../result/monthly_summary_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv"
+
+out_path = f"../result/interv_{variable_name}_summary_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv"
 summary_df.to_csv(out_path, index=False)
 print("saved ->", out_path)
 
