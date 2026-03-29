@@ -4,7 +4,7 @@ from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, RandomActivation, SimultaneousActivation
 from mesa.space import MultiGrid
-from model.agents_copy import *
+from model.agents_copy_temp import *
 import sys
 import os
 import pandas as pd
@@ -256,13 +256,13 @@ class CPE_Model_month(Model):
         sampler = qmc.LatinHypercube(d=1)
         lhs_samples = sampler.random(n=N)
         lambda_param = self.hospital_period  # 지수 분포의 람다(lambda) 파라미터
-        exponential_dist = expon(scale=lambda_param)  # scale = 1 / lambda
+        exponential_dist = expon(scale=1/lambda_param)  # scale = 1 / lambda
         exponential_samples = exponential_dist.ppf(lhs_samples.flatten())
         exponential_samples = np.round(exponential_samples)
         #처음에 몇일남았느지 프린트
-        #print("exponential_samples:", exponential_samples)
-        #print("min sample:", np.min(exponential_samples))
-        #print("num zeros in exponential_samples:", np.sum(exponential_samples == 0))
+        print("exponential_samples:", exponential_samples)
+        print("min sample:", np.min(exponential_samples))
+        print("num zeros in exponential_samples:", np.sum(exponential_samples == 0))
         # bed,patient,Goo 30개
         for i in range(30):
             # 위치 정하기
@@ -371,6 +371,7 @@ class CPE_Model_month(Model):
         self.schedule.time %= self.ticks_in_day  # to keep the number from getting too large
 
         if self.schedule.time == 0:
+            
             self.day += 1
 
         # 하루 끝날 때 compartment 상태 저장

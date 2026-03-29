@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", category=UserWarning, message="No agent report
 
 # %%
 data_type = 'A'
-num_iter = 10; np.int64(num_iter)
+num_iter = 50; np.int64(num_iter)
 init_envc = 10
 init_tau0 = 140 
 # Parameters
@@ -48,8 +48,9 @@ fixed_params = {
     }
 
 variable_name = 'prob_transmission'
-variable_value = [0.01,0.02,0.03,0.04,0.05]
-
+variable_value = [0.02,0.025,0.03,0.035,0.04,0.045,0.05]
+beta_tag1 = variable_value[0]
+beta_tag2 = variable_value[-1]
 del fixed_params[variable_name]
 variable_params = {variable_name : variable_value}
 
@@ -129,7 +130,7 @@ except NameError:
     base_dir = os.getcwd()
 
 os.makedirs(os.path.join(base_dir, '..', 'result'), exist_ok=True)
-csv_path = os.path.join(base_dir, '..', f'result/emulation_beta_{data_type}{init_envc}{init_tau0}.csv')
+csv_path = os.path.join(base_dir, '..', f'result/emulation_beta_lambda{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv')
 df.to_csv(csv_path, index=False)
 print("done!! ->", csv_path)
 # %% RAW Summarry 인데 람다수정버전(일별로나오네 이걸 월별로바꿔보자)
@@ -142,7 +143,7 @@ import pandas as pd
 # -----------------------------
 # 설정
 # -----------------------------
-csv_path = "../result/emulation_beta_A10140_lambda.csv"   # 파일명 맞게 수정
+csv_path = "../result/emulation_beta_lambdaA10140_.csv"   # 파일명 맞게 수정
                             # A or B
 days_per_month = 30
 
@@ -240,7 +241,7 @@ print(summary_df.head())
 # -----------------------------
 # 저장
 # -----------------------------
-out_path = f"../result/monthly_summary_{data_type}.csv"
+out_path = f"../result/monthly_summary_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv"
 summary_df.to_csv(out_path, index=False)
 print("saved ->", out_path)
 
@@ -653,135 +654,8 @@ print("done!!")
 
 
 
-# %% 컴파트먼트까지 출력되는 버전
-
-import os
-import time
-import pandas as pd
-
-data_type = 'B'
-num_iter = 1
-
-# Parameters
-cleanDay = 180
-washrate = 0.9
-isolationTime = 14
-init_envc = 2
-init_tau0 = 40
-
-runtime = 30 * 36
-probNewPatient = 0.003
-probTransmission = 0.00005
-isolationFactor = 0.75
-height = 11
-width = 32
-
-variable_name = 'prob_transmission'
-variable_value = [0.04]   # 필요하면 여러 값 넣어도 됨
-
-start_time = time.time()
-
-all_histories = []
-
-# --- 저장 폴더: 한 칸 상위 result ---
-result_dir = "../result"
-os.makedirs(result_dir, exist_ok=True)
-
-print("Current working directory:")
-print(os.getcwd())
-
-for b in variable_value:
-
-    print(f"\nRunning beta = {b}")
-
-    for it in range(num_iter):
-
-        print(f"  iteration {it+1}/{num_iter} running...")
-
-        model = CPE_Model_month(
-            data_type=data_type,
-            prob_new_patient=probNewPatient,
-            prob_transmission=b,
-            isolation_factor=isolationFactor,
-            cleaningDay=cleanDay,
-            hcw_wash_rate=washrate,
-            isolation_time=isolationTime,
-            height=height,
-            width=width,
-            init_env=init_envc,
-            tau_offset_days=init_tau0
-        )
-
-        max_steps = model.ticks_in_day * runtime
-
-        for step in range(max_steps):
-
-            model.step()
-
-            # 선택: 진행상황 보고 싶으면 활성화
-            # if step % model.ticks_in_day == 0:
-            #     day_now = step // model.ticks_in_day
-            #     print(f"    day {day_now}")
-
-        df_hist = model.get_history_dataframe().copy()
-
-        df_hist["prob_transmission"] = b
-        df_hist["iteration"] = it + 1
-
-        all_histories.append(df_hist)
-
-        print(f"  iteration {it+1}/{num_iter} finished")
-
-elapsed = time.time() - start_time
-print(f"\nDone. Elapsed time = {elapsed:.2f} sec")
-
-# --- trajectory 합치기 ---
-traj_df = pd.concat(all_histories, ignore_index=True)
-
-# --- 평균 trajectory ---
-mean_traj = (
-    traj_df
-    .groupby(["prob_transmission", "day"], as_index=False)
-    .mean(numeric_only=True)
-)
-
-# --- 저장 ---
-traj_path = f"{result_dir}/traj_all_iterations.csv"
-mean_path = f"{result_dir}/traj_mean.csv"
-
-traj_df.to_csv(traj_path, index=False)
-mean_traj.to_csv(mean_path, index=False)
-
-print("\nSaved files:")
-print(traj_path)
-print(mean_path)
-# %% 환자 환경
 
 
-
-plt.figure(figsize=(10, 5))
-for b in variable_value:
-    temp = mean_traj[mean_traj["prob_transmission"] == b]
-    plt.plot(temp["day"], temp["patient_C"], label=f"beta={b}")
-
-plt.xlabel("Day")
-plt.ylabel("Colonized patients")
-plt.title("Daily trajectory of colonized patients")
-plt.legend()
-plt.grid(True)
-plt.show()
-
-plt.figure(figsize=(10, 5))
-for b in variable_value:
-    temp = mean_traj[mean_traj["prob_transmission"] == b]
-    plt.plot(temp["day"], temp["goo_C"], label=f"beta={b}")
-
-plt.xlabel("Day")
-plt.ylabel("Colonized Goo")
-plt.title("Daily trajectory of contaminated environment")
-plt.legend()
-plt.grid(True)
-plt.show()
 # %% A기간에서하는걸로 컴파트먼트나오게 
 
 
@@ -859,10 +733,10 @@ for b in variable_value:
         for step in range(max_steps):
             model.step()
             # 둘 동일한지 체크만 살짝
-        print(
-    f"  check iteration {it+1}:",
-    sum(model.totalHWCinf),
-    model.cumul_sick_patients
+            print(
+            f"  check iteration {it+1}:",
+            sum(model.totalHCWinf),
+            model.cumul_sick_patients_by_HCW
 )
         df_hist = model.get_history_dataframe().copy()
         df_hist["prob_transmission"] = b
@@ -910,6 +784,7 @@ final_summary = (
         "empty_isolated_beds",
         "daily_hcw_infections",
         "cumulative_sick_patients",
+        "cumulative_sick_patients_by_HCW",
         "cumulative_patients",
         "move2isol"
     ]]
@@ -947,3 +822,30 @@ print(final_mean_path)
 # %%
 
 # %%
+# %% 환자 환경
+
+
+
+plt.figure(figsize=(10, 5))
+for b in variable_value:
+    temp = mean_traj[mean_traj["prob_transmission"] == b]
+    plt.plot(temp["day"], temp["patient_C"], label=f"beta={b}")
+
+plt.xlabel("Day")
+plt.ylabel("Colonized patients")
+plt.title("Daily trajectory of colonized patients")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+plt.figure(figsize=(10, 5))
+for b in variable_value:
+    temp = mean_traj[mean_traj["prob_transmission"] == b]
+    plt.plot(temp["day"], temp["goo_C"], label=f"beta={b}")
+
+plt.xlabel("Day")
+plt.ylabel("Colonized Goo")
+plt.title("Daily trajectory of contaminated environment")
+plt.legend()
+plt.grid(True)
+plt.show()

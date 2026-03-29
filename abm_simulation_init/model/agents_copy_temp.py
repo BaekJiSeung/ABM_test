@@ -367,11 +367,9 @@ class Patient(CPE_Agent):
         self.stay -= 1
         if self.isol_time > 0:
             self.isol_time -= 1
-        if self.stay <= 0:
-            if self in self.model.current_patients:
-                self.model.current_patients.remove(self)
-            if self not in self.model.discharged:
-                self.model.discharged.append(self)
+        if self.stay == 0:
+            self.model.current_patients.remove(self)
+            self.model.discharged.append(self)
         
         if self.isol_time == 0:
             self.move2isol = True

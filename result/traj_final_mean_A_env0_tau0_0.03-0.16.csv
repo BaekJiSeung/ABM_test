@@ -1,0 +1,5 @@
+prob_transmission,iteration,patients,patient_C,patient_S,patient_isolated,patient_positive,patient_preinfection,hcws,hcw_C,goo,goo_C,beds,filled_beds,filled_sick_beds,empty_isolated_beds,daily_hcw_infections,cumulative_sick_patients,cumulative_sick_patients_by_HCW,cumulative_patients,move2isol
+0.03,5.5,30.0,0.0,30.0,16.0,0.0,0.0,19.0,0.0,30.0,0.0,30.0,30.0,0.0,0.0,0.0,2.8,0.0,70.1,0.0
+0.1,5.5,30.0,15.5,14.5,15.6,15.5,0.0,19.0,0.1,30.0,12.5,30.0,30.0,15.5,0.0,0.0,34.9,30.7,95.3,5.8
+0.16,5.5,29.9,14.9,15.0,15.7,14.9,0.0,19.0,0.1,30.0,14.6,30.0,29.9,14.9,0.1,0.0,35.1,30.9,78.0,4.1
+0.7,5.5,30.0,15.0,15.0,15.8,15.0,0.0,19.0,0.2,30.0,15.0,30.0,30.0,15.0,0.0,0.0,48.5,45.0,72.5,0.6
