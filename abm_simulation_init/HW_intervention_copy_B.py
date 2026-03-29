@@ -50,7 +50,7 @@ fixed_params = {
     }
 # A처럼 여기를 수정하면 원하는 파라미터에 대한 인터벤션 가능
 variable_name = 'prob_transmission'
-variable_value = [0.02]
+variable_value = [0.04,0.05]
 beta_tag1 = variable_value[0]
 beta_tag2 = variable_value[-1]
 del fixed_params[variable_name]
@@ -110,8 +110,8 @@ for b in variable_value:
     out_df.loc[start:start+len(s)-1, b] = s.values
     start += len(s)
 
-# 저장
-#%%
+# 
+#%% 저장
 try:
     base_dir = os.path.dirname(os.path.abspath(__file__))
 except NameError:
@@ -120,37 +120,10 @@ csv_path = os.path.join(base_dir, '..', f'result/interv_{variable_name}_{data_ty
 
 out_df.to_csv(csv_path, index=False)
 print("done!! ->", csv_path)
+#이름 예시 interv_prob_transmission_B240_0.02-0.05
 
 
 
-
-# %%
-df = pd.DataFrame()
-for value in variable_value:
-    temp = run_data.query('{}=={}'.format(variable_name,value))['HCW_related_infecs']
-    df[value] = temp.reset_index(drop = True)
-emulated_data = df.values[0][0]
-
-print(emulated_data)
-try:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-except NameError:
-    base_dir = os.getcwd()
-
-os.makedirs(os.path.join(base_dir, '..', 'result'), exist_ok=True)
-csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
-    'result/emulation_beta_{}.csv'.format(data_type))
-csv_path = os.path.join(base_dir, '..', f'result/interv_{variable_name}_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv')
-if os.path.isfile(csv_path):
-    saved_df = pd.read_csv(csv_path,index_col=0)
-    saved_df.columns = variable_value
-    df = pd.concat([saved_df,df], ignore_index=True)
-df.to_csv(csv_path)
-
-print("done!!")
-
-
-# %%
 # %% interv raw 파일을 Summary (월별로 나오게끔)
 
 import os
@@ -264,7 +237,7 @@ print(summary_df.head())
 out_path = f"../result/interv_{variable_name}_summary_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv"
 summary_df.to_csv(out_path, index=False)
 print("saved ->", out_path)
-
+#이름예시 interv_prob_transmission_summary_B240_0.02-0.05
 
 
 

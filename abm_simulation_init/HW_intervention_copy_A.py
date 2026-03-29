@@ -136,21 +136,21 @@ os.makedirs(os.path.join(base_dir, '..', 'result'), exist_ok=True)
 csv_path = os.path.join(base_dir, '..', f'result/interv_{variable_name}_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv')
 df.to_csv(csv_path, index=False)
 print("done!! ->", csv_path)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #이름 예시 interv_prob_transmission_A10140_0.02-0.05
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # %% interv raw 파일을 Summary (월별로 나오게끔)
 
 import os
@@ -255,15 +255,16 @@ for beta in raw_df.columns:
 
 summary_df = pd.DataFrame(rows).sort_values("beta").reset_index(drop=True)
 
-
+print(summary_df.head())
 
 # -----------------------------
 # 저장
 # -----------------------------
+
 out_path = f"../result/interv_{variable_name}_summary_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv"
 summary_df.to_csv(out_path, index=False)
 print("saved ->", out_path)
-#이름예시 interv_summary_prob_transmission_A10140_0.02-0.05
+#이름예시 interv_prob_transmission_summary_A10140_0.02-0.05
 
 
 
