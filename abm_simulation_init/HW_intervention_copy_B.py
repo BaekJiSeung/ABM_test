@@ -19,7 +19,7 @@ warnings.filterwarnings("ignore", category=UserWarning, message="No agent report
 
 # %% 여기서부터 B
 data_type = 'B'
-num_iter = 1; np.int64(num_iter)
+num_iter = 50; np.int64(num_iter)
 
 # Parameters
 cleanDay = 180
@@ -50,7 +50,7 @@ fixed_params = {
     }
 # A처럼 여기를 수정하면 원하는 파라미터에 대한 인터벤션 가능
 variable_name = 'prob_transmission'
-variable_value = [0.04,0.05]
+variable_value = [0.02,0.03,0.04,0.05]
 beta_tag1 = variable_value[0]
 beta_tag2 = variable_value[-1]
 del fixed_params[variable_name]

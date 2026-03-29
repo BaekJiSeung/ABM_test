@@ -262,7 +262,7 @@ class CPE_Model_month(Model):
         #처음에 몇일남았느지 프린트
         #print("exponential_samples:", exponential_samples)
         #print("min sample:", np.min(exponential_samples))
-        print("num zeros in exponential_samples:", np.sum(exponential_samples == 0))
+        #print("num zeros in exponential_samples:", np.sum(exponential_samples == 0))
         # bed,patient,Goo 30개
         for i in range(30):
             # 위치 정하기
