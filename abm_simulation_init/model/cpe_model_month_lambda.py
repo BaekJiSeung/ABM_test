@@ -4,7 +4,7 @@ from mesa import Model
 from mesa.datacollection import DataCollector
 from mesa.time import BaseScheduler, RandomActivation, SimultaneousActivation
 from mesa.space import MultiGrid
-from model.agents_copy import *
+from model.agents_lambda import *
 import sys
 import os
 import pandas as pd

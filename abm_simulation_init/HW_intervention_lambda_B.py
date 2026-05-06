@@ -1,8 +1,8 @@
 # %%
 
-from model.cpe_model_month_copy import CPE_Model_month
-from model.cpe_model_month_copy import getHCWInfec
-from model.cpe_model_month_copy import getTotalInfec
+from model.cpe_model_month_lambda import CPE_Model_month
+from model.cpe_model_month_lambda import getHCWInfec
+from model.cpe_model_month_lambda import getTotalInfec
 from mesa.batchrunner import BatchRunner
 from mesa.batchrunner import BatchRunnerMP
 from multiprocessing import freeze_support
@@ -16,19 +16,21 @@ warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning, message="No agent reporters*")
 
 
-# %% 람다 수정/stay값 수정 버전
-data_type = 'A'
+
+# %% 여기서부터 B
+data_type = 'B'
 num_iter = 50; np.int64(num_iter)
-init_envc = 10
-init_tau0 = 140 
+
 # Parameters
 cleanDay = 180
 washrate = 0.9
 isolationTime = 14
+init_envc = 2
+init_tau0 = 60
 
-runtime = 30*19 # dont forget change A : 30 * 19, B : 30 * 36
+runtime = 30*36 # dont forget change A : 30 * 19, B : 30 * 36
 probNewPatient = 0.003 # 0.053, Old Calibration # 1/2000, 2592 ticks per day
-probTransmission = 0.0866 # calibration result
+probTransmission = 0.00005 # calibration result
 isolationFactor = 0.75 # fix
 height=11
 width=32
@@ -44,14 +46,11 @@ fixed_params = {
     "isolation_time" : isolationTime, 
     "height" : height, "width" : width,
     "init_env": init_envc,
-    "tau_offset_days": init_tau0
+    "tau_offset_days": init_tau0 
     }
-
-
-# 여기를 수정하면 원하는 파라미터에 대한 인터벤션 가능
-# 저장도
+# A처럼 여기를 수정하면 원하는 파라미터에 대한 인터벤션 가능
 variable_name = 'prob_transmission'
-variable_value = [0.02,0.025,0.03,0.035,0.04,0.045,0.05]
+variable_value = [0.0425,0.045,0.0475,0.05,0.0525,0.055,0.0575,0.06,0.0625,0.065,0.0675,0.07,]
 beta_tag1 = variable_value[0]
 beta_tag2 = variable_value[-1]
 del fixed_params[variable_name]
@@ -69,8 +68,8 @@ model = CPE_Model_month(
     hcw_wash_rate=washrate,
     isolation_time=isolationTime,
     height=height, width=width,
-    init_env=init_envc,                 # [ADD] 초기 오염 개수 (예: 10)
-    tau_offset_days=init_tau0
+    init_env= init_envc,
+    tau_offset_days= init_tau0
     )
 print('loading...\n\n')
 
@@ -86,68 +85,42 @@ batch_run = BatchRunner(
                     #  ,"Num_move_Patients": getNumIsol}
                     #  "Number_of_Patients_sick":getNumSick}
 )
+print('now run')
 
 
-# ... 위는 동일 ...
-
-print("now run")
+# for _ in range(num_iter):
 batch_run.run_all()
-
 run_data = batch_run.get_model_vars_dataframe()
-print(run_data.head())
-print("cols:", list(run_data.columns))
 
-# --- iteration 보정 ---
-ITER_CANDIDATES = ["iteration", "Iteration", "Run", "run", "run_id"]
-iter_col = None
-for c in ITER_CANDIDATES:
-    if c in run_data.columns:
-        iter_col = c
-        break
+# 베타별 series 뽑기
+series_map = {}
+lengths = []
+for b in variable_value:
+    s = run_data.query(f"{variable_name}=={b}")["HCW_related_infecs"].reset_index(drop=True)
+    series_map[b] = s
+    lengths.append(len(s))
 
-# 없으면 variable_name별로 0,1,2,... 붙여서 만들어준다
-if iter_col is None:
-    run_data = run_data.reset_index(drop=True)
-    # 같은 변수값(b)끼리 0,1,2,... 부여
-    if variable_name in run_data.columns:
-        run_data["iteration"] = run_data.groupby(variable_name).cumcount()
-    else:
-        # 변수컬럼조차 없다면 전체에 0,1,2,...
-        run_data["iteration"] = np.arange(len(run_data))
-    iter_col = "iteration"
+# "블록 스택" 형태로 DataFrame 만들기: (다른 열은 빈칸)
+total_rows = sum(lengths)
+out_df = pd.DataFrame(index=range(total_rows), columns=variable_value, dtype=object)
 
-# --- 피벗 ---
-df = run_data.pivot_table(
-    index=iter_col,                  # 실행 반복 구분
-    columns=variable_name,           # ex: cleaningDay
-    values="HCW_related_infecs",     # reporter 결과
-    aggfunc="first"
-).reset_index(drop=True)
+start = 0
+for b in variable_value:
+    s = series_map[b]
+    out_df.loc[start:start+len(s)-1, b] = s.values
+    start += len(s)
 
-print(df.head())
-
-# --- 저장 (경로 안전 처리) ---
+# 
+# 저장
 try:
     base_dir = os.path.dirname(os.path.abspath(__file__))
 except NameError:
     base_dir = os.getcwd()
-
-os.makedirs(os.path.join(base_dir, '..', 'result'), exist_ok=True)
 csv_path = os.path.join(base_dir, '..', f'result/interv_{variable_name}_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv')
-df.to_csv(csv_path, index=False)
+
+out_df.to_csv(csv_path, index=False)
 print("done!! ->", csv_path)
-#이름 예시 interv_prob_transmission_A10140_0.02-0.05
-
-
-
-
-
-
-
-
-
-
-
+#이름 예시 interv_prob_transmission_B240_0.02-0.05
 
 
 
@@ -161,9 +134,9 @@ import pandas as pd
 # -----------------------------
 # 설정
 # -----------------------------
-# 파일명 맞게 수정, 수정없을경우 위의 셀에서 만든 파일 사용
-# csv_path = "../result/emulation_beta_lambdaA10140_0.02-0.05.csv"   
-data_type = "A"                                 # A or B
+# 파일명 맞게 수정
+# csv_path = "../result/emulation_beta_B240_0.04-0.04.csv"  
+data_type = "B"                                  # A or B
 days_per_month = 30
 
 if data_type == "A":
@@ -264,7 +237,7 @@ print(summary_df.head())
 out_path = f"../result/interv_{variable_name}_summary_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv"
 summary_df.to_csv(out_path, index=False)
 print("saved ->", out_path)
-#이름예시 interv_prob_transmission_summary_A10140_0.02-0.05
+#이름예시 interv_prob_transmission_summary_B240_0.02-0.05
 
 
 
@@ -276,61 +249,49 @@ print("saved ->", out_path)
 
 
 
-
-# %% 밑의 셀들은 동일하게하지만 컴파트먼트가 전부 나오는버전, 출력결과가 동일함은 확인완료
-
-
-
-
-
-
+# %% 컴파트먼트까지 출력되는 버전
 
 import os
 import time
-import numpy as np
 import pandas as pd
 
-data_type = 'A'
+data_type = 'B'
 num_iter = 1
-
-init_envc = 10
-init_tau0 = 140
 
 # Parameters
 cleanDay = 180
 washrate = 0.9
 isolationTime = 14
+init_envc = 2
+init_tau0 = 40
 
-runtime = 30 * 19   # A
+runtime = 30 * 36
 probNewPatient = 0.003
-probTransmission = 0.0866
+probTransmission = 0.00005
 isolationFactor = 0.75
 height = 11
 width = 32
 
 variable_name = 'prob_transmission'
-variable_value = [0.05]
+variable_value = [0.04]   # 필요하면 여러 값 넣어도 됨
 
 start_time = time.time()
 
 all_histories = []
 
-# 저장 폴더
-try:
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-except NameError:
-    base_dir = os.getcwd()
-
-result_dir = os.path.join(base_dir, '..', 'result')
+# --- 저장 폴더: 한 칸 상위 result ---
+result_dir = "../result"
 os.makedirs(result_dir, exist_ok=True)
 
 print("Current working directory:")
 print(os.getcwd())
 
 for b in variable_value:
+
     print(f"\nRunning beta = {b}")
 
     for it in range(num_iter):
+
         print(f"  iteration {it+1}/{num_iter} running...")
 
         model = CPE_Model_month(
@@ -350,14 +311,16 @@ for b in variable_value:
         max_steps = model.ticks_in_day * runtime
 
         for step in range(max_steps):
+
             model.step()
-            # 둘 동일한지 체크만 살짝
-            print(
-            f"  check iteration {it+1}:",
-            sum(model.totalHCWinf),
-            model.cumul_sick_patients_by_HCW
-)
+
+            # 선택: 진행상황 보고 싶으면 활성화
+            # if step % model.ticks_in_day == 0:
+            #     day_now = step // model.ticks_in_day
+            #     print(f"    day {day_now}")
+
         df_hist = model.get_history_dataframe().copy()
+
         df_hist["prob_transmission"] = b
         df_hist["iteration"] = it + 1
 
@@ -368,79 +331,26 @@ for b in variable_value:
 elapsed = time.time() - start_time
 print(f"\nDone. Elapsed time = {elapsed:.2f} sec")
 
-# --- 모든 trajectory 합치기 ---
+# --- trajectory 합치기 ---
 traj_df = pd.concat(all_histories, ignore_index=True)
 
-# --- day별 평균 trajectory ---
+# --- 평균 trajectory ---
 mean_traj = (
     traj_df
     .groupby(["prob_transmission", "day"], as_index=False)
     .mean(numeric_only=True)
 )
 
-# --- 각 iteration 마지막 날 요약 ---
-final_summary = (
-    traj_df
-    .sort_values(["prob_transmission", "iteration", "day"])
-    .groupby(["prob_transmission", "iteration"], as_index=False)
-    .tail(1)
-    [[
-        "prob_transmission",
-        "iteration",
-        "patients",
-        "patient_C",
-        "patient_S",
-        "patient_isolated",
-        "patient_positive",
-        "patient_preinfection",
-        "hcws",
-        "hcw_C",
-        "goo",
-        "goo_C",
-        "beds",
-        "filled_beds",
-        "filled_sick_beds",
-        "empty_isolated_beds",
-        "daily_hcw_infections",
-        "cumulative_sick_patients",
-        "cumulative_sick_patients_by_HCW",
-        "cumulative_patients",
-        "move2isol"
-    ]]
-)
-
-# --- 마지막 날 평균 ---
-final_mean = (
-    final_summary
-    .groupby("prob_transmission", as_index=False)
-    .mean(numeric_only=True)
-)
-
-beta_tag1 = variable_value[0]
-beta_tag2 = variable_value[-1]
-
-# --- 저장 파일명 ---
-tag = f"{data_type}_env{init_envc}_tau{init_tau0}_{beta_tag1}-{beta_tag2}"
-print(tag)
-traj_path = os.path.join(result_dir, f"traj_all_iterations_{tag}.csv")
-mean_path = os.path.join(result_dir, f"traj_mean_{tag}.csv")
-final_summary_path = os.path.join(result_dir, f"traj_final_summary_{tag}.csv")
-final_mean_path = os.path.join(result_dir, f"traj_final_mean_{tag}.csv")
+# --- 저장 ---
+traj_path = f"{result_dir}/traj_all_iterations.csv"
+mean_path = f"{result_dir}/traj_mean.csv"
 
 traj_df.to_csv(traj_path, index=False)
 mean_traj.to_csv(mean_path, index=False)
-final_summary.to_csv(final_summary_path, index=False)
-final_mean.to_csv(final_mean_path, index=False)
 
 print("\nSaved files:")
 print(traj_path)
 print(mean_path)
-print(final_summary_path)
-print(final_mean_path)
-
-# %%
-
-# %%
 # %% 환자 환경
 
 
@@ -465,6 +375,20 @@ for b in variable_value:
 plt.xlabel("Day")
 plt.ylabel("Colonized Goo")
 plt.title("Daily trajectory of contaminated environment")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+
+plt.figure(figsize=(10, 5))
+for b in variable_value:
+    temp = mean_traj[mean_traj["prob_transmission"] == b]
+    plt.plot(temp["day"], temp["cumulative_sick_patients_by_HCW"], label=f"beta={b}")
+
+plt.xlabel("Day")
+plt.ylabel("cumulative_sick_patients_by_HCW")
+plt.title("cumulative_sick_patients_by_HCW")
 plt.legend()
 plt.grid(True)
 plt.show()

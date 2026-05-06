@@ -514,8 +514,8 @@ import pandas as pd
 data_type = 'A'
 num_iter = 10
 
-init_envc = 0
-init_tau0 = 0
+init_envc = 2
+init_tau0 = 40
 
 # Parameters
 cleanDay = 180
@@ -530,7 +530,7 @@ height = 11
 width = 32
 
 variable_name = 'prob_transmission'
-variable_value = [0.03,0.7,0.1,0.16]
+variable_value = [0.03,0.07,0.1,0.16]
 
 start_time = time.time()
 

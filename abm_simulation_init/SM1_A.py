@@ -196,8 +196,8 @@ def simulate_theta(beta, init_env, tau0,
 
 
 # ===== 테스트 =====
-theta = 3.35
-init_env = 10
+theta = 3.374
+init_env = 9
 tau0 = 140   # 청소 후 30일 지난 시점에서 시작한다고 가정
 
 days, daily_inc, monthly_df, comp_df = simulate_theta(theta, init_env, tau0)
@@ -279,9 +279,9 @@ def loglik_cum_poisson(theta, init_env, tau0):
     return ll
 # %%
 # ====== 그리드 정의 (예시는 대충, 직접 조정하면 됨) ======
-theta_grid = np.linspace(3.0, 3.5, 26)        # β 후보
-init_grid  = np.arange(0, 12, 1)       # 초기 Env_C(0)
-tau_grid   = np.arange(0, 171, 10)           # 청소 후 경과일: 0,30,60,...,180
+theta_grid = np.linspace(3.3, 3.4, 101)        # β 후보
+init_grid  = np.arange(7, 13, 1)       # 초기 Env_C(0)
+tau_grid   = np.arange(100, 161, 10)           # 청소 후 경과일: 0,30,60,...,180
 
 best_params = None
 best_ll = -1e18
@@ -336,8 +336,8 @@ def aic_bic(theta, init_env, tau0, k=3):
 
 
 # ===== 사용 예시 =====
-theta_test   = 3.35
-init_env_test = 10
+theta_test   = 3.374
+init_env_test = 9
 tau0_test    = 140    # 마지막 청소 직후라고 가정
 
 ll, aic, bic = aic_bic(theta_test, init_env_test, tau0_test)
