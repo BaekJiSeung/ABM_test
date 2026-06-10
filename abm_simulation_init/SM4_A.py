@@ -180,9 +180,9 @@ def simulate_theta(beta, init_env, tau0,
 # %% ================== Step4: 누적 Poisson MLE + 95% CI ==================
 
 # --- 설정 ---
-abm_csv  = "../result/interv_prob_transmission_summary_A240_0.01-0.08.csv"   # ABM 요약 csv 경로
-init_env = 2
-tau0     = 40
+abm_csv  = "../result/interv_prob_transmission_summary_A9140_0.01-0.07.csv"   # ABM 요약 csv 경로
+init_env = 9
+tau0     = 140
 theta_min, theta_max = 0.5,6       # θ 탐색 구간
 beta_list = [0.01,0.015,0.02,0.025,0.03,0.035,0.04,0.045,0.05,0.055,0.06,0.065,0.07]
 
@@ -290,12 +290,11 @@ for b in beta_list:
         "neg_loglik_cum_min": nll_min,
         "init_env": init_env,
         "tau0": tau0,
-    })
-# %%
+    })# %%
 # 저장
 df_res = pd.DataFrame(results)
 os.makedirs("sm_fit", exist_ok=True)
-out_csv = "sm_fit/theta_pairs_subset_cumPoisson_A240.csv"
+out_csv = "sm_fit/theta_pairs_subset_cumPoisson_A9140.csv"
 df_res.to_csv(out_csv, index=False, encoding="utf-8")
 print("\n저장 완료 →", out_csv)
 print(df_res.head())
@@ -308,7 +307,8 @@ print(df_res.head())
 
 
 # %% 비교 (누적 버전)
-theta_hat = 5.4523 # 피팅 결과
+theta_hat = 3.277591973
+ # 피팅 결과
 
 days, daily_inc_hat, monthly_hat_df, comp_hat_df = simulate_theta(
     theta_hat,
@@ -317,7 +317,7 @@ days, daily_inc_hat, monthly_hat_df, comp_hat_df = simulate_theta(
 )
 
 # 1) ABM 쪽: beta=0.10 행 뽑기  (지금은 0.100으로 되어 있음)
-beta_test = 0.07
+beta_test = 0.04
 sub = df_abm.loc[np.isclose(df_abm["beta"], beta_test)]
 row = sub.iloc[0]
 y_mean = row["mean_vec"]   # 길이 19, 월별 평균 HAI
@@ -370,8 +370,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # ===== 설정 =====
-csv_path = Path("sm_fit/theta_pairs_subset_cumPoisson_A240.csv")
-out_png  = Path("sm_fit/step4_betaabm_to_thetasm_plotA240.png")
+csv_path = Path("sm_fit/theta_pairs_subset_cumGaussian_A9140_dropFirst1.csv")
+out_png  = Path("sm_fit/step4_betaabm_to_thetasm_plotA9140_dropFirst1.png")
 
 # ===== 데이터 읽기 =====
 df = pd.read_csv(csv_path)

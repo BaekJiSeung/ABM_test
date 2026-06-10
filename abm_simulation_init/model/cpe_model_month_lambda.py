@@ -108,6 +108,14 @@ class CPE_Model_month(Model):
             months = list(range(0, 30 * 19 + 1, 30)) # 1.5 yrs
             self.inflow_date = [x for x, n in zip(months, PI_counts) for _ in range(n)]
             self.hospital_period = 7 # exp(1/lambda)
+        if data_type == 'A_':
+            csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..','..',
+            'data/dataA_per_months.csv')
+            df = pd.read_csv(csv_path, usecols=['PI_counts'])
+            PI_counts = df['PI_counts'].astype(int).tolist()
+            months = list(range(0, 30 * 19 + 1, 30)) # 1.5 yrs
+            self.inflow_date = [x for x, n in zip(months, PI_counts) for _ in range(n)]
+            self.hospital_period = 14 # exp(1/lambda)
 
         elif data_type == 'B':
             csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..','..',
@@ -136,6 +144,7 @@ class CPE_Model_month(Model):
         self.cleaningDay = cleaningDay
         self.isolation_time = isolation_time
         self.hcw_wash_rate = hcw_wash_rate
+            
 
         # [ADD] 초기오염/대청소 설정 저장
         self.init_env = int(init_env)

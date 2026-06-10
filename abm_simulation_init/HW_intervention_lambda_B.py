@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", category=UserWarning, message="No agent report
 
 
 # %% 여기서부터 B
-data_type = 'B'
+data_type = 'B_'
 num_iter = 50; np.int64(num_iter)
 
 # Parameters
@@ -50,7 +50,7 @@ fixed_params = {
     }
 # A처럼 여기를 수정하면 원하는 파라미터에 대한 인터벤션 가능
 variable_name = 'prob_transmission'
-variable_value = [0.0425,0.045,0.0475,0.05,0.0525,0.055,0.0575,0.06,0.0625,0.065,0.0675,0.07,]
+variable_value = [0.02,0.025,0.03,0.035,0.04,0.045,0.05,0.055,0.06,0.065]
 beta_tag1 = variable_value[0]
 beta_tag2 = variable_value[-1]
 del fixed_params[variable_name]
@@ -234,7 +234,7 @@ print(summary_df.head())
 # 저장
 # -----------------------------
 
-out_path = f"../result/interv_{variable_name}_summary_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv"
+out_path = f"../result/interv_{variable_name}_summary_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}_7.csv"
 summary_df.to_csv(out_path, index=False)
 print("saved ->", out_path)
 #이름예시 interv_prob_transmission_summary_B240_0.02-0.05

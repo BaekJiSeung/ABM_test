@@ -90,7 +90,7 @@ def simulate_theta(beta, init_env, tau0,
 
     deep_clean_period = 180
     iso_factor        = 0.75
-    isol_time         = 14.0
+    isol_time         = 7.0
     sigma             = 1.0 / isol_time   # shared HAI → iso HAI
 
     # ---- 시간축 ----

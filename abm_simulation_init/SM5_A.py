@@ -52,7 +52,7 @@ def simulate_theta(beta, init_env, tau0,
 
     deep_clean_period = 180
     iso_factor        = 0.75
-    isol_time         = 14.0
+    isol_time         = 7.0
     sigma             = 1.0 / isol_time   # shared HAI → iso HAI
 
     # ---- 시간축 ----
@@ -332,8 +332,8 @@ def fit_theta_cum_with_CI(init_env=10, tau0=140, bounds=(2.5, 6.0),
 # ===== 실행 예시 =====
 init_env = 10
 tau0     = 140
-bounds   = (0.1, 6.0)
-grid_n = 400
+bounds   = (3.2,3.5)
+grid_n = 60
 res = fit_theta_cum_with_CI(init_env=init_env, tau0=tau0, bounds=bounds, grid_n = grid_n)
 print(
     f"theta_hat={res['theta_hat']:.3f}  "
@@ -540,10 +540,10 @@ def fit_theta_cum_with_CI(init_env=10, tau0=140, bounds=(0.1, 6.0),
     }
 
 # ===== 실행 =====
-init_env = 90
+init_env = 9
 tau0     = 140
-bounds   = (3, 4)
-grid_n   = 101
+bounds   = (3.2, 3.7)
+grid_n   = 51
 
 res = fit_theta_cum_with_CI(init_env=init_env, tau0=tau0, bounds=bounds, grid_n=grid_n, auto_expand=True)
 

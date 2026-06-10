@@ -51,7 +51,7 @@ fixed_params = {
 # 여기를 수정하면 원하는 파라미터에 대한 인터벤션 가능
 # 저장도
 variable_name = 'prob_transmission'
-variable_value = [0.03802]
+variable_value = [0.03847]
 beta_tag1 = variable_value[0]
 beta_tag2 = variable_value[-1]
 del fixed_params[variable_name]
@@ -162,7 +162,7 @@ import pandas as pd
 # 설정
 # -----------------------------
 # 파일명 맞게 수정, 수정없을경우 위의 셀에서 만든 파일 사용
-# csv_path = "../result/emulation_beta_lambdaA10140_0.02-0.05.csv"   
+#csv_path = "../result/interv_prob_transmission_A9140_0.01-0.07.csv"   
 data_type = "A"                                 # A or B
 days_per_month = 30
 

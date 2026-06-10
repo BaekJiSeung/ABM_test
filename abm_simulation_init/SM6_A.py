@@ -3,7 +3,7 @@ import numpy as np, pandas as pd
 from scipy.interpolate import PchipInterpolator
 
 def infer_abm_beta_from_sm(sm_hat, sm_low=None, sm_high=None,
-                           pairs_csv="sm_fit/theta_pairs_subset_cumPoisson_A9140.csv"):
+                           pairs_csv="sm_fit/theta_pairs_subset_cumGaussian_A9140.csv"):
     """
     Step6: (β_ABM, β_SM) 매핑으로 데이터에서 얻은 β_SM → β_ABM 역보간
     """
@@ -84,10 +84,10 @@ def infer_abm_beta_from_sm(sm_hat, sm_low=None, sm_high=None,
 #           그 파일 안의 열 이름이 반드시 'beta_sm_hat'이어야 함!
 #           (아직 'theta_hat'이면 CSV를 미리 rename 하거나 위 read 구문을 고쳐줘.)
 res = infer_abm_beta_from_sm(
-    sm_hat=3.374,         # 데이터에서 뽑은 SM β (누적 MLE)
-    sm_low=3.315,          # CI 있으면 넣기
-    sm_high=3.431,
-    pairs_csv="sm_fit/theta_pairs_subset_cumPoisson_A9140.csv"
+    sm_hat=3.387,         # 데이터에서 뽑은 SM β (누적 MLE)
+    sm_low=3.328,          # CI 있으면 넣기
+    sm_high=3.444,
+    pairs_csv="sm_fit/theta_pairs_subset_cumGaussian_A9140.csv"
 )
 print(res)
 
@@ -99,7 +99,7 @@ import ast
 import matplotlib.pyplot as plt
 
 # ==== 설정 ====
-csv_path = "../result/interv_prob_transmission_summary_A9140_0.03802-0.03802.csv"
+csv_path = "../result/interv_prob_transmission_summary_A9140_0.03847-0.03847.csv"
 start_month = "2017-01"
 
 # 색상

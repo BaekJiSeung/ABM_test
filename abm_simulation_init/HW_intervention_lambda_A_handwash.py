@@ -51,7 +51,7 @@ fixed_params = {
 
 # 여기를 수정하면 원하는 파라미터에 대한 인터벤션 가능
 variable_name = 'hcw_wash_rate'
-variable_value = [0.7, 0.8, 0.9, 0.91, 0.93, 0.95, 0.97, 0.99]
+variable_value = [0.3,0.5,0.7, 0.9, 0.93, 0.95, 0.98, 1]
 
 beta_tag1 = variable_value[0]
 beta_tag2 = variable_value[-1]
@@ -74,7 +74,7 @@ data_dir = os.path.abspath(os.path.join(base_dir, '..', 'data'))
 os.makedirs(result_dir, exist_ok=True)
 os.makedirs(data_dir, exist_ok=True)
 
-beta_csv = os.path.join(data_dir, 'beta_posterior_samples_15_0.005_20000.csv')
+beta_csv = os.path.join(data_dir, 'beta_posterior_samples_15_0.0025_20000.csv')
 beta_all = pd.read_csv(beta_csv, header=None).iloc[:, 0].astype(float).values
 
 if len(beta_all) < num_iter:
@@ -225,7 +225,120 @@ df.to_csv(csv_path, index=False)
 print("done!! ->", csv_path)
 
 
+# %% interv raw 파일을 Summary (월별로 나오게끔)
 
+import os
+import ast
+import numpy as np
+import pandas as pd
+
+# -----------------------------
+# 설정
+# -----------------------------
+# 파일명 맞게 수정, 수정없을경우 위의 셀에서 만든 파일 사용
+#csv_path = "../result/interv_hcw_wash_rate_A9140_0.3-1_18.csv"   
+data_type = "A"                                 # A or B
+days_per_month = 30
+
+if data_type == "A":
+    n_months = 19
+elif data_type == "B":
+    n_months = 36
+else:
+    raise ValueError("data_type must be 'A' or 'B'")
+
+# -----------------------------
+# raw data 읽기
+# -----------------------------
+raw_df = pd.read_csv(csv_path)
+
+# -----------------------------
+# 문자열 리스트 -> 파이썬 리스트 변환 함수
+# -----------------------------
+def parse_series(x):
+    if pd.isna(x):
+        return None
+    if isinstance(x, list):
+        return x
+    return ast.literal_eval(x)
+
+# -----------------------------
+# 일별 -> 월별 변환
+# -----------------------------
+def daily_to_monthly(daily_series, days_per_month=30, n_months=None):
+    arr = np.array(daily_series, dtype=float)
+
+    if n_months is not None:
+        needed = days_per_month * n_months
+        arr = arr[:needed]
+
+    m = len(arr) // days_per_month
+    arr = arr[:m * days_per_month]
+
+    monthly = arr.reshape(m, days_per_month).sum(axis=1)
+    return monthly.tolist()
+
+# -----------------------------
+# beta별 summary 계산
+# -----------------------------
+rows = []
+
+for beta in raw_df.columns:
+    # 해당 beta 열에서 non-null iteration만 가져오기
+    series_list = raw_df[beta].dropna().apply(parse_series).tolist()
+
+    # 각 iteration의 일별 series -> 월별 series
+    monthly_runs = [
+        daily_to_monthly(s, days_per_month=days_per_month, n_months=n_months)
+        for s in series_list
+    ]
+
+    monthly_arr = np.array(monthly_runs, dtype=float)   # shape = (n_iter, n_months)
+
+    # 월별 통계
+    mean_ = monthly_arr.mean(axis=0).tolist()
+    std_ = monthly_arr.std(axis=0, ddof=0).tolist()
+    max_ = monthly_arr.max(axis=0).tolist()
+    median_ = np.median(monthly_arr, axis=0).tolist()
+
+    # nonzero_mean
+    nonzero_mean_ = []
+    disease_free_ = []
+
+    for j in range(monthly_arr.shape[1]):
+        col = monthly_arr[:, j]
+        nz = col[col > 0]
+
+        if len(nz) == 0:
+            nonzero_mean_.append(0.0)
+        else:
+            nonzero_mean_.append(float(nz.mean()))
+
+        disease_free_.append(float((col == 0).mean() * 100.0))
+
+    rows.append({
+        "beta": float(beta),
+        "mean": mean_,
+        "std": std_,
+        "n": int(monthly_arr.shape[0]),
+        "max": max_,
+        "median": median_,
+        "nonzero_mean": nonzero_mean_,
+        "disease_free(%)": disease_free_
+    })
+
+summary_df = pd.DataFrame(rows).sort_values("beta").reset_index(drop=True)
+
+print(summary_df.head())
+
+# -----------------------------
+# 저장
+# -----------------------------
+
+out_path = f"../result/interv_{variable_name}_summary_{data_type}{init_envc}{init_tau0}_{beta_tag1}-{beta_tag2}.csv"
+summary_df.to_csv(out_path, index=False)
+print("saved ->", out_path)
+#이름예시 interv_prob_transmission_summary_A10140_0.02-0.05
 
 
 

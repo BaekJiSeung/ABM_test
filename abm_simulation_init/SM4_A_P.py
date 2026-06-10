@@ -22,22 +22,28 @@ def _make_AI_from_dates(pi_dates, days):
     T = len(days)
     A = np.zeros(T)
     idx_map = {d: i for i, d in enumerate(days)}
+
     for d in pi_dates:
         ts = pd.to_datetime(d)
         idx = idx_map.get(ts, None)
         if idx is not None:
             A[idx] += 1.0
+
     return A
 
 
 # %% ================== SM simulation: p_wash fitting version ==================
 
-def simulate_pwash(p_wash, init_env, tau0,
-                   beta_SM=3.374,
-                   monthly_PI=monthly_PI,
-                   pi_dates=PI_dates):
+def simulate_pwash(
+    p_wash,
+    init_env,
+    tau0,
+    beta_SM=3.374,
+    monthly_PI=monthly_PI,
+    pi_dates=PI_dates
+):
     """
-    SM beta는 beta_SM=3.374로 고정.
+    SM beta는 beta_SM으로 고정.
     p_wash만 바꿔가며 surrogate output을 생성한다.
 
     상태:
@@ -67,6 +73,7 @@ def simulate_pwash(p_wash, init_env, tau0,
     # ---- 시간축 ----
     start = pd.Period(monthly_PI.index.min(), freq="M").to_timestamp(how="start")
     end = pd.Period(monthly_PI.index.max(), freq="M").to_timestamp(how="end")
+
     days = pd.date_range(start, end, freq="D")
     T = len(days)
 
@@ -103,18 +110,22 @@ def simulate_pwash(p_wash, init_env, tau0,
 
         # 오늘 입원하는 P_I
         inc = A_I_day[t]
+
         if inc > 0:
             total_P = PS_sh + PH_sh + PH_iso + PI
             stay_free = max(0.0, C_total - total_P)
             inc_eff = min(inc, stay_free)
+
             taken = min(PS_sh, inc_eff)
+
             PS_sh -= taken
             PI += taken
 
         for _ in range(contacts_per_day):
+
             B_tot = max(PS_sh + PH_sh + PH_iso + PI, 1e-9)
 
-            # beta는 고정: beta_SM = 3.374
+            # beta는 고정
             lam_HP_sh = beta_SM * (HC / N_H)
 
             lam_PH = beta_SM * (
@@ -126,6 +137,8 @@ def simulate_pwash(p_wash, init_env, tau0,
 
             # 새 HAI
             hai_sh = lam_HP_sh * PS_sh * dt
+
+            # shared HAI -> iso HAI
             move_HA = sigma * PH_sh * dt
 
             # 퇴원
@@ -210,11 +223,11 @@ def simulate_pwash(p_wash, init_env, tau0,
     return days, NewHAI_day, monthly, comp_df
 
 
-# %% ================== Step4: p_wash 누적 Poisson MLE + 95% CI ==================
+# %% ================== Step4: p_wash 누적 Gaussian MLE + 95% CI ==================
 
 # --- 설정 ---
 # ABM의 p_wash intervention output summary 파일
-abm_csv = "../result/interv_hcw_wash_rate_summary_A9140_0.7-0.99.csv"
+abm_csv = "../result/interv_hcw_wash_rate_summary_A9140_0.3-1.csv"
 
 init_env = 9
 tau0 = 140
@@ -222,13 +235,15 @@ tau0 = 140
 # SM beta 고정
 beta_SM = 3.374
 
-# p_wash 탐색 범위: 0~1
-p_min = 0.8
-p_max = 0.9
+# p_wash 탐색 범위
+p_min = 0.9
+p_max = 1
 grid_n = 101
 
 # ABM에서 실험한 p값들
-p_list = [0.7,0.8]
+#p_list = [0.3, 0.5, 0.7, 0.9]
+p_list = [ 0.93, 0.95, 0.98, 1.0]
+
 
 # --- ABM CSV 읽기 ---
 df_abm = pd.read_csv(abm_csv)
@@ -257,10 +272,27 @@ print("p column =", p_col)
 # 월 index
 n_months = len(df_abm["mean_vec"].iloc[0])
 start_month = "2017-01"
-months = pd.period_range(start_month, periods=n_months, freq="M").to_timestamp()
+
+months = pd.period_range(
+    start_month,
+    periods=n_months,
+    freq="M"
+).to_timestamp()
+
+print("Used months:", len(months), months[0], "to", months[-1])
 
 
-def model_monthly_and_cum_pwash(p_wash, init_env=init_env, tau0=tau0, beta_SM=beta_SM):
+def model_monthly_and_cum_pwash(
+    p_wash,
+    init_env=init_env,
+    tau0=tau0,
+    beta_SM=beta_SM
+):
+    """
+    p_wash를 넣고 SM simulation 실행.
+    월별 예측값과 누적 예측값 반환.
+    """
+
     days, daily_inc, monthly_df, comp_df = simulate_pwash(
         p_wash=p_wash,
         init_env=init_env,
@@ -282,7 +314,22 @@ def model_monthly_and_cum_pwash(p_wash, init_env=init_env, tau0=tau0, beta_SM=be
     return monthly, cum
 
 
-def negloglik_pwash_cum_poisson(p_wash, cum_obs, init_env, tau0, beta_SM):
+def negloglik_pwash_cum_gaussian(
+    p_wash,
+    cum_obs,
+    init_env,
+    tau0,
+    beta_SM
+):
+    """
+    누적 Gaussian negative log-likelihood.
+
+    cum_obs_t = cum_model_t(p_wash) + error_t
+    error_t ~ N(0, sigma^2)
+
+    sigma^2는 p_wash마다 residual variance MLE로 추정.
+    """
+
     _, cum_model = model_monthly_and_cum_pwash(
         p_wash=p_wash,
         init_env=init_env,
@@ -290,29 +337,50 @@ def negloglik_pwash_cum_poisson(p_wash, cum_obs, init_env, tau0, beta_SM):
         beta_SM=beta_SM
     )
 
-    lam = np.clip(cum_model, 1e-12, None)
     y = np.asarray(cum_obs, dtype=float)
+    mu = np.asarray(cum_model, dtype=float)
 
-    # -log L(p) = sum(lambda - y log lambda) + const
-    nll = np.sum(lam - y * np.log(lam))
+    m = min(len(y), len(mu))
+    y = y[:m]
+    mu = mu[:m]
 
-    return nll
+    resid = y - mu
+    n = len(resid)
+
+    sigma2_hat = np.mean(resid ** 2)
+    sigma2_hat = max(sigma2_hat, 1e-12)
+
+    nll = 0.5 * n * (np.log(2 * np.pi * sigma2_hat) + 1)
+
+    return float(nll)
 
 
-def ci95_profile_pwash(cum_obs, init_env, tau0, p_hat, nll_hat,
-                       beta_SM=beta_SM,
-                       bounds=(p_min, p_max),
-                       grid_n=grid_n):
+def ci95_profile_pwash_gaussian(
+    cum_obs,
+    init_env,
+    tau0,
+    p_hat,
+    nll_hat,
+    beta_SM=beta_SM,
+    bounds=(p_min, p_max),
+    grid_n=grid_n
+):
+    """
+    Gaussian profile likelihood 95% CI.
 
-    # -2 log Lambda ~ chi-square_1
-    # NLL threshold = NLL_min + 1.92
+    -2 log Lambda(p) ~ chi-square_1(0.95)=3.84
+
+    NLL(p) = NLL(p_hat) + 3.84/2
+           = NLL(p_hat) + 1.92
+    """
+
     thr = nll_hat + 1.92
 
     a, b = bounds
     grid = np.linspace(a, b, grid_n)
 
     vals = np.array([
-        negloglik_pwash_cum_poisson(
+        negloglik_pwash_cum_gaussian(
             p,
             cum_obs,
             init_env,
@@ -326,13 +394,19 @@ def ci95_profile_pwash(cum_obs, init_env, tau0, p_hat, nll_hat,
 
     i_hat = np.searchsorted(grid, p_hat)
 
+    left = np.nan
+    right = np.nan
+
     # left boundary
-    left = a
     for i in range(i_hat, 0, -1):
         if g[i-1] > 0 and g[i] <= 0:
             left = brentq(
-                lambda x: negloglik_pwash_cum_poisson(
-                    x, cum_obs, init_env, tau0, beta_SM
+                lambda x: negloglik_pwash_cum_gaussian(
+                    x,
+                    cum_obs,
+                    init_env,
+                    tau0,
+                    beta_SM
                 ) - thr,
                 grid[i-1],
                 grid[i]
@@ -340,12 +414,15 @@ def ci95_profile_pwash(cum_obs, init_env, tau0, p_hat, nll_hat,
             break
 
     # right boundary
-    right = b
     for i in range(i_hat, len(grid)-1):
         if g[i] <= 0 and g[i+1] > 0:
             right = brentq(
-                lambda x: negloglik_pwash_cum_poisson(
-                    x, cum_obs, init_env, tau0, beta_SM
+                lambda x: negloglik_pwash_cum_gaussian(
+                    x,
+                    cum_obs,
+                    init_env,
+                    tau0,
+                    beta_SM
                 ) - thr,
                 grid[i],
                 grid[i+1]
@@ -355,17 +432,18 @@ def ci95_profile_pwash(cum_obs, init_env, tau0, p_hat, nll_hat,
     return float(left), float(right)
 
 
-def fit_pwash_cum_poisson_for_one(p_abm, y_mean):
+def fit_pwash_cum_gaussian_for_one(p_abm, y_mean):
     """
     ABM p_wash 결과 y_mean에 대해
-    SM p_wash_hat을 누적 Poisson MLE로 추정.
+    SM p_wash_hat을 누적 Gaussian MLE로 추정.
     """
+
     cum_obs = np.cumsum(y_mean)
 
     p_grid = np.linspace(p_min, p_max, grid_n)
 
     vals = np.array([
-        negloglik_pwash_cum_poisson(
+        negloglik_pwash_cum_gaussian(
             p,
             cum_obs,
             init_env,
@@ -380,7 +458,21 @@ def fit_pwash_cum_poisson_for_one(p_abm, y_mean):
     p_hat = float(p_grid[idx])
     nll_min = float(vals[idx])
 
-    p_low, p_high = ci95_profile_pwash(
+    # sigma_hat 계산
+    _, cum_model_hat = model_monthly_and_cum_pwash(
+        p_wash=p_hat,
+        init_env=init_env,
+        tau0=tau0,
+        beta_SM=beta_SM
+    )
+
+    m = min(len(cum_obs), len(cum_model_hat))
+    resid = cum_obs[:m] - cum_model_hat[:m]
+
+    sigma_hat = float(np.sqrt(np.mean(resid ** 2)))
+
+    # 95% CI
+    p_low, p_high = ci95_profile_pwash_gaussian(
         cum_obs=cum_obs,
         init_env=init_env,
         tau0=tau0,
@@ -391,7 +483,7 @@ def fit_pwash_cum_poisson_for_one(p_abm, y_mean):
         grid_n=grid_n
     )
 
-    return p_hat, p_low, p_high, nll_min
+    return p_hat, p_low, p_high, nll_min, sigma_hat
 
 
 # %% ================== 실행 ==================
@@ -411,15 +503,16 @@ for p in p_list:
     p_abm = float(row[p_col])
     y_mean = row["mean_vec"]
 
-    p_hat, p_low, p_high, nll_min = fit_pwash_cum_poisson_for_one(
+    p_hat, p_low, p_high, nll_min, sigma_hat = fit_pwash_cum_gaussian_for_one(
         p_abm=p_abm,
         y_mean=y_mean
     )
 
-    print(f"=== CUM-Poisson MLE for p_ABM = {p_abm:0.3f} ===")
+    print(f"=== CUM-Gaussian MLE for p_ABM = {p_abm:0.3f} ===")
     print(
         f"  p_hat = {p_hat:.4f}, "
         f"95% CI = [{p_low:.4f}, {p_high:.4f}], "
+        f"sigma_hat = {sigma_hat:.4f}, "
         f"NLL_cum_min = {nll_min:.2f}"
     )
 
@@ -428,6 +521,7 @@ for p in p_list:
         "p_hat": p_hat,
         "p_low": p_low,
         "p_high": p_high,
+        "sigma_hat": sigma_hat,
         "neg_loglik_cum_min": nll_min,
         "beta_SM_fixed": beta_SM,
         "init_env": init_env,
@@ -441,9 +535,13 @@ df_res = pd.DataFrame(results)
 
 os.makedirs("sm_fit", exist_ok=True)
 
-out_csv = "sm_fit/pwash_pairs_cumPoisson_A9140_betaSM4p89.csv"
+out_csv = "sm_fit/pwash_pairs_cumGaussian_A9140_SM4p0.3-1.csv"
 
-df_res.to_csv(out_csv, index=False, encoding="utf-8")
+df_res.to_csv(
+    out_csv,
+    index=False,
+    encoding="utf-8"
+)
 
 print("\n저장 완료 →", out_csv)
 print(df_res)
@@ -470,34 +568,45 @@ if not df_res.empty:
     )
 
     # y=x 기준선
-    plt.plot([0, 1], [0, 1], "--", label="y = x")
+    plt.plot(
+        [0, 1],
+        [0, 1],
+        "--",
+        label="y = x"
+    )
 
     plt.xlim(0, 1)
     plt.ylim(0, 1)
 
     plt.xlabel("ABM handwash probability p")
     plt.ylabel("SM fitted handwash probability p_hat")
-    plt.title("Mapping ABM p_wash to SM p_wash\n(beta_SM fixed at 3.374)")
+    plt.title(
+        "Mapping ABM p_wash to SM p_wash\n"
+        f"beta_SM fixed at {beta_SM}"
+    )
     plt.legend()
     plt.grid(True)
 
-    fig_path = "sm_fit/pwash_mapping_A9140_betaSM3p374.png"
+    fig_path = "sm_fit/pwash_mapping_A9140_SM4p0.3-1_gaussian.png"
+
     plt.tight_layout()
     plt.savefig(fig_path, dpi=150)
     plt.show()
 
     print("그림 저장 완료 →", fig_path)
-# %%
-# ================================
-# fitted p 값 (SM에서 얻은 결과)
-# ================================
 
-p_hat = 0.917   # 예: fitting 결과
+
+# %% ================== 특정 p_ABM과 fitted p_SM 누적 비교 플롯 ==================
+
+# fitted p 값 직접 넣기
+# 예: 위 결과에서 p_ABM=0.95에 대응하는 p_hat을 사용
+p_hat = 0.9180
 
 days, daily_inc_hat, monthly_hat_df, comp_hat_df = simulate_pwash(
     p_hat,
     init_env,
-    tau0
+    tau0,
+    beta_SM=beta_SM
 )
 
 # ================================
@@ -506,7 +615,6 @@ days, daily_inc_hat, monthly_hat_df, comp_hat_df = simulate_pwash(
 
 p_test = 0.95
 
-# p 컬럼 이름 확인 (중요)
 if "hcw_wash_rate" in df_abm.columns:
     p_col = "hcw_wash_rate"
 elif "p" in df_abm.columns:
@@ -516,11 +624,14 @@ elif "beta" in df_abm.columns:
 else:
     raise ValueError("p column not found")
 
-sub = df_abm.loc[np.isclose(df_abm[p_col], p_test)]
+sub = df_abm.loc[np.isclose(df_abm[p_col].astype(float), p_test)]
+
+if sub.empty:
+    raise ValueError(f"p={p_test} 인 행이 df_abm에 없습니다.")
 
 row = sub.iloc[0]
 
-y_mean = row["mean_vec"]   # 월별 incidence (길이 19)
+y_mean = row["mean_vec"]
 
 # ================================
 # 2) 모델 쪽: p_hat으로 월별 HAI 벡터 만들기
@@ -548,18 +659,17 @@ y_model = np.array([
 ])
 
 # ================================
-# 3) 월별 → 누적합
+# 3) 월별 -> 누적합
 # ================================
 
 cum_abm = np.cumsum(y_mean)
-
 cum_model = np.cumsum(y_model)
 
 # ================================
 # 4) 누적 비교 플롯
 # ================================
 
-plt.figure(figsize=(9,6))
+plt.figure(figsize=(9, 6))
 
 plt.plot(
     months,
@@ -588,9 +698,9 @@ ax.set_xticks(months[::3], minor=True)
 plt.yticks(fontsize=18)
 plt.xticks(fontsize=18)
 
-ax.grid(True, which='major', axis='x', linestyle='-')
-ax.grid(True, which='minor', axis='x', linestyle='--')
-ax.grid(True, axis='y', linestyle='-')
+ax.grid(True, which="major", axis="x", linestyle="-")
+ax.grid(True, which="minor", axis="x", linestyle="--")
+ax.grid(True, axis="y", linestyle="-")
 
 ax.set_ylim(bottom=0)
 
