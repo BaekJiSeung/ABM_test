@@ -101,11 +101,175 @@ def infer_abm_beta_from_sm(
 # =========================
 
 res_B = infer_abm_beta_from_sm(
-    sm_hat=3.2991,
-    sm_low=3.2781,
-    sm_high=3.3200,
+    sm_hat=3.3148,
+    sm_low=3.2936,
+    sm_high=3.3360,
     pairs_csv="sm_fit/theta_pairs_subset_cumGaussian_B260.csv"
 )
 
 print(res_B)
 # %%
+
+
+# %% imports
+import pandas as pd
+import numpy as np
+import ast
+import matplotlib.pyplot as plt
+
+# ==== 설정 ====
+csv_path = "../result/interv_prob_transmission_summary_B260_0.03847-0.03847.csv"
+start_month = "2021-01"
+
+# 색상
+COLOR_OBS = "black"
+COLOR_ABM = "blue"
+
+# ==== CSV 읽기 ====
+df = pd.read_csv(csv_path)
+
+print("columns:", df.columns.tolist())
+print(df.head())
+
+# 첫 행 사용 (beta 하나만 있는 파일이라고 가정)
+row = df.iloc[0]
+
+# beta 값
+beta_val = float(row["beta"]) if "beta" in df.columns else 0.03802
+
+# mean / std 파싱
+m_mean = np.array(ast.literal_eval(row["mean"]), dtype=float)
+m_std  = np.array(ast.literal_eval(row["std"]), dtype=float)
+
+# 길이 확인
+n_months = len(m_mean)
+print("n_months:", n_months)
+
+# observed 데이터
+y_month = np.array([5,2,0,2,1,1,2,2,6,1,1,0,2,1,1,2,5,2,2], dtype=float)
+
+if len(y_month) != n_months:
+    raise ValueError(f"Observed data length ({len(y_month)}) != mean length ({n_months})")
+
+# ==== 월 인덱스 ====
+months = pd.period_range(start_month, periods=n_months, freq="M").to_timestamp()
+
+x = np.arange(n_months)
+date_labels = pd.date_range(start=f"{start_month}-01", periods=n_months, freq="MS")
+date_str = [d.strftime("%Y-%m-%d") for d in date_labels]
+
+major_idx = np.arange(0, n_months, 6)
+minor_idx = np.arange(0, n_months, 3)
+
+# ==== cumulative ====
+c_mean = np.cumsum(m_mean)
+y_cum  = np.cumsum(y_month)
+
+# 주의:
+# 월별 std를 단순 누적해서 cumulative std로 보는 건 엄밀하지 않음.
+# 독립 가정하에 대략적인 cumulative band를 만들려면 아래처럼 계산 가능.
+c_std = np.sqrt(np.cumsum(m_std**2))
+
+# ==== 플롯: 월별 ====
+plt.figure(figsize=(9, 6))
+
+plt.plot(
+    x, m_mean,
+    "o-",
+    color=COLOR_ABM,
+    linewidth=2,
+    label=f"ABM mean (beta_ABM={beta_val:.5f})"
+)
+
+plt.fill_between(
+    x,
+    m_mean - m_std,
+    m_mean + m_std,
+    color=COLOR_ABM,
+    alpha=0.2,
+    label="ABM ±1 SD"
+)
+
+plt.plot(
+    x, y_month,
+    "s-",
+    color=COLOR_OBS,
+    linewidth=2.5,
+    label="Observed data"
+)
+
+plt.ylabel("HAI counts", fontsize=18)
+
+ax = plt.gca()
+ax.set_xticks(major_idx)
+ax.set_xticks(minor_idx, minor=True)
+ax.set_xticklabels([date_str[i] for i in major_idx], fontsize=18)
+
+plt.yticks(fontsize=18)
+
+ax.grid(True, which="major", axis="x", linestyle="-")
+ax.grid(True, which="minor", axis="x", linestyle="--")
+ax.grid(True, axis="y", linestyle="-")
+
+plt.legend(fontsize=16)
+plt.tight_layout()
+plt.show()
+
+# ==== 플롯: 누적 ====
+plt.figure(figsize=(9, 6))
+
+plt.plot(
+    x, c_mean,
+    "o-",
+    color=COLOR_ABM,
+    linewidth=2,
+    label=f"ABM cumulative (beta_ABM={beta_val:.5f})"
+)
+
+plt.fill_between(
+    x,
+    c_mean - c_std,
+    c_mean + c_std,
+    color=COLOR_ABM,
+    alpha=0.2,
+    label="ABM cumulative ± approx. SD"
+)
+
+plt.plot(
+    x, y_cum,
+    "s-",
+    color=COLOR_OBS,
+    linewidth=2.5,
+    label="Observed cumulative"
+)
+
+plt.ylabel("Cumulative HAI", fontsize=18)
+
+ax = plt.gca()
+ax.set_xticks(major_idx)
+ax.set_xticks(minor_idx, minor=True)
+ax.set_xticklabels([date_str[i] for i in major_idx], fontsize=18)
+
+plt.yticks(fontsize=18)
+
+ax.grid(True, which="major", axis="x", linestyle="-")
+ax.grid(True, which="minor", axis="x", linestyle="--")
+ax.grid(True, axis="y", linestyle="-")
+ax.set_ylim(bottom=0)
+
+plt.legend(fontsize=16)
+plt.tight_layout()
+plt.show()
+
+# ==== 표 출력 ====
+summary_df = pd.DataFrame({
+    "month": months,
+    "monthly_mean": m_mean,
+    "monthly_sd": m_std,
+    "observed_monthly": y_month,
+    "cum_mean": c_mean,
+    "cum_sd_approx": c_std,
+    "observed_cum": y_cum
+})
+
+print(summary_df.round(3).to_string(index=False))

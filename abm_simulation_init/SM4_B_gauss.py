@@ -263,27 +263,6 @@ def simulate_theta(beta, init_env, tau0,
     return days, NewHAI_day, monthly, comp_df
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # %% ================== Step4: B기간 전체 36개월 누적 Gaussian MLE + 95% CI ==================
 
 # --- 설정 ---
@@ -294,7 +273,9 @@ tau0 = 60
 
 theta_min, theta_max = 0.5, 6.0
 
-beta_list = [0.01,0.015,0.02,0.025,0.03,0.035,0.04,0.045,0.05,0.055,0.06,0.065,0.07
+beta_list = [
+    0.01, 0.015, 0.02, 0.025, 0.03, 0.035,
+    0.04, 0.045, 0.05, 0.055, 0.06, 0.065, 0.07
 ]
     
 # --- ABM CSV 읽고 mean/std 벡터 만들기 ---
@@ -347,14 +328,38 @@ def model_monthly_and_cum(theta, init_env=init_env, tau0=tau0):
     return monthly, cum
 
 
-def negloglik_theta_cum_gaussian(theta, cum_obs, init_env, tau0):
+def make_cum_std_from_monthly_std(y_std):
     """
-    누적 Gaussian negative log-likelihood.
+    월별 std를 누적 std로 근사.
+
+    누적 fitting이므로 std도 cumulative scale로 맞춤.
+    독립 가정:
+        Var(C_t) = Var(Y_1 + ... + Y_t)
+                 ≈ Var(Y_1) + ... + Var(Y_t)
+
+    따라서:
+        cum_std = sqrt(cumsum(monthly_std^2))
+    """
+
+    y_std = np.asarray(y_std, dtype=float)
+
+    cum_std = np.sqrt(np.cumsum(y_std ** 2))
+
+    # std가 0이면 likelihood에서 division by zero 발생하므로 보정
+    cum_std = np.maximum(cum_std, 1e-6)
+
+    return cum_std
+
+
+def negloglik_theta_cum_gaussian(theta, cum_obs, cum_std, init_env, tau0):
+    """
+    누적 weighted Gaussian negative log-likelihood.
 
     cum_obs_t = cum_model_t(theta) + error_t
-    error_t ~ N(0, sigma^2)
+    error_t ~ N(0, cum_std_t^2)
 
-    sigma^2는 theta마다 residual variance MLE로 추정.
+    여기서 cum_std는 ABM 반복 simulation의 월별 std를
+    cumulative scale로 근사한 값.
     """
 
     _, cum_model = model_monthly_and_cum(
@@ -365,24 +370,27 @@ def negloglik_theta_cum_gaussian(theta, cum_obs, init_env, tau0):
 
     y = np.asarray(cum_obs, dtype=float)
     mu = np.asarray(cum_model, dtype=float)
+    sd = np.asarray(cum_std, dtype=float)
 
-    m = min(len(y), len(mu))
+    m = min(len(y), len(mu), len(sd))
     y = y[:m]
     mu = mu[:m]
+    sd = sd[:m]
+
+    sd = np.maximum(sd, 1e-6)
 
     resid = y - mu
-    n = len(resid)
 
-    sigma2_hat = np.mean(resid ** 2)
-    sigma2_hat = max(sigma2_hat, 1e-12)
-
-    nll = 0.5 * n * (np.log(2 * np.pi * sigma2_hat) + 1)
+    nll = 0.5 * np.sum(
+        np.log(2 * np.pi * sd**2) + (resid**2) / (sd**2)
+    )
 
     return float(nll)
 
 
 def ci95_profile_theta_gaussian(
     cum_obs,
+    cum_std,
     init_env,
     tau0,
     theta_hat,
@@ -397,6 +405,8 @@ def ci95_profile_theta_gaussian(
 
     NLL(theta) = NLL(theta_hat) + 3.84/2
                = NLL(theta_hat) + 1.92
+
+    여기서는 ABM std 기반 weighted Gaussian NLL 사용.
     """
 
     thr = nll_hat + 1.92
@@ -408,6 +418,7 @@ def ci95_profile_theta_gaussian(
         negloglik_theta_cum_gaussian(
             th,
             cum_obs,
+            cum_std,
             init_env,
             tau0
         )
@@ -428,6 +439,7 @@ def ci95_profile_theta_gaussian(
                 lambda x: negloglik_theta_cum_gaussian(
                     x,
                     cum_obs,
+                    cum_std,
                     init_env,
                     tau0
                 ) - thr,
@@ -443,6 +455,7 @@ def ci95_profile_theta_gaussian(
                 lambda x: negloglik_theta_cum_gaussian(
                     x,
                     cum_obs,
+                    cum_std,
                     init_env,
                     tau0
                 ) - thr,
@@ -454,14 +467,20 @@ def ci95_profile_theta_gaussian(
     return float(left), float(right)
 
 
-def fit_theta_cum_gaussian_for_one(beta_abm, y_mean):
+def fit_theta_cum_gaussian_for_one(beta_abm, y_mean, y_std):
     """
     beta_ABM 하나에 대해:
     B기간 전체 36개월 mean trajectory를 누적으로 바꾸고,
+    y_std도 누적 std로 근사한 뒤,
+    weighted Gaussian likelihood로
     theta_hat, 95% CI, NLL_min, sigma_hat 반환.
     """
 
+    # 월별 mean -> 누적 mean
     cum_obs = np.cumsum(y_mean)
+
+    # 월별 std -> 누적 std
+    cum_std = make_cum_std_from_monthly_std(y_std)
 
     theta_grid = np.linspace(theta_min, theta_max, 200)
 
@@ -469,6 +488,7 @@ def fit_theta_cum_gaussian_for_one(beta_abm, y_mean):
         negloglik_theta_cum_gaussian(
             th,
             cum_obs,
+            cum_std,
             init_env,
             tau0
         )
@@ -481,13 +501,14 @@ def fit_theta_cum_gaussian_for_one(beta_abm, y_mean):
     nll_min = float(vals[idx])
 
     # sigma_hat 계산
+    # 기존 저장 컬럼 유지용: 참고용 cumulative RMSE
     _, cum_model_hat = model_monthly_and_cum(
         theta_hat,
         init_env=init_env,
         tau0=tau0
     )
 
-    m = min(len(cum_obs), len(cum_model_hat))
+    m = min(len(cum_obs), len(cum_model_hat), len(cum_std))
     resid = cum_obs[:m] - cum_model_hat[:m]
 
     sigma_hat = float(np.sqrt(np.mean(resid ** 2)))
@@ -495,6 +516,7 @@ def fit_theta_cum_gaussian_for_one(beta_abm, y_mean):
     # 95% CI
     theta_low, theta_high = ci95_profile_theta_gaussian(
         cum_obs,
+        cum_std,
         init_env,
         tau0,
         theta_hat,
@@ -522,13 +544,15 @@ for b in beta_list:
 
     beta_abm = float(row["beta"])
     y_mean = row["mean_vec"]
+    y_std = row["std_vec"]
 
     theta_hat, theta_low, theta_high, nll_min, sigma_hat = fit_theta_cum_gaussian_for_one(
         beta_abm,
-        y_mean
+        y_mean,
+        y_std
     )
 
-    print(f"=== B CUM-Gaussian MLE for beta_ABM = {beta_abm:0.4f} ===")
+    print(f"=== B CUM-Gaussian MLE with ABM std for beta_ABM = {beta_abm:0.4f} ===")
     print(
         f"  theta_hat = {theta_hat:.4f}, "
         f"95% CI = [{theta_low:.4f}, {theta_high:.4f}], "
