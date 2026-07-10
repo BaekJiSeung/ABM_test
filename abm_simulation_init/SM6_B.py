@@ -118,7 +118,7 @@ import ast
 import matplotlib.pyplot as plt
 
 # ==== 설정 ====
-csv_path = "../result/interv_prob_transmission_summary_B260_0.03847-0.03847.csv"
+csv_path = "../result/interv_prob_transmission_summary_B260_0.041361-0.043161.csv"
 start_month = "2021-01"
 
 # 색상
@@ -131,11 +131,12 @@ df = pd.read_csv(csv_path)
 print("columns:", df.columns.tolist())
 print(df.head())
 
-# 첫 행 사용 (beta 하나만 있는 파일이라고 가정)
+# 첫 행 사용
+# beta 하나만 있는 파일이라고 가정
 row = df.iloc[0]
 
 # beta 값
-beta_val = float(row["beta"]) if "beta" in df.columns else 0.03802
+beta_val = float(row["beta"]) if "beta" in df.columns else 0.03788
 
 # mean / std 파싱
 m_mean = np.array(ast.literal_eval(row["mean"]), dtype=float)
@@ -145,17 +146,36 @@ m_std  = np.array(ast.literal_eval(row["std"]), dtype=float)
 n_months = len(m_mean)
 print("n_months:", n_months)
 
-# observed 데이터
-y_month = np.array([5,2,0,2,1,1,2,2,6,1,1,0,2,1,1,2,5,2,2], dtype=float)
+# ==== B period observed data: 2021-01 ~ 2023-12 ====
+y_month = np.array(
+    [
+        1,2,2,2,1,0,0,3,2,2,2,0,
+        3,0,1,2,0,1,4,5,4,2,4,1,
+        0,0,1,0,1,1,0,3,1,0,3,0
+    ],
+    dtype=float
+)
 
 if len(y_month) != n_months:
-    raise ValueError(f"Observed data length ({len(y_month)}) != mean length ({n_months})")
+    raise ValueError(
+        f"Observed data length ({len(y_month)}) != mean length ({n_months})"
+    )
 
 # ==== 월 인덱스 ====
-months = pd.period_range(start_month, periods=n_months, freq="M").to_timestamp()
+months = pd.period_range(
+    start_month,
+    periods=n_months,
+    freq="M"
+).to_timestamp()
 
 x = np.arange(n_months)
-date_labels = pd.date_range(start=f"{start_month}-01", periods=n_months, freq="MS")
+
+date_labels = pd.date_range(
+    start=f"{start_month}-01",
+    periods=n_months,
+    freq="MS"
+)
+
 date_str = [d.strftime("%Y-%m-%d") for d in date_labels]
 
 major_idx = np.arange(0, n_months, 6)
@@ -165,20 +185,21 @@ minor_idx = np.arange(0, n_months, 3)
 c_mean = np.cumsum(m_mean)
 y_cum  = np.cumsum(y_month)
 
-# 주의:
-# 월별 std를 단순 누적해서 cumulative std로 보는 건 엄밀하지 않음.
-# 독립 가정하에 대략적인 cumulative band를 만들려면 아래처럼 계산 가능.
-c_std = np.sqrt(np.cumsum(m_std**2))
+# 월별 std를 cumulative std로 근사
+# 독립 가정:
+# Var(cumsum) ≈ cumsum(Var)
+c_std = np.sqrt(np.cumsum(m_std ** 2))
 
-# ==== 플롯: 월별 ====
+# ==== 플롯 1: 월별 incidence ====
 plt.figure(figsize=(9, 6))
 
 plt.plot(
-    x, m_mean,
+    x,
+    m_mean,
     "o-",
     color=COLOR_ABM,
     linewidth=2,
-    label=f"ABM mean (beta_ABM={beta_val:.5f})"
+    label=fr"ABM mean ($\beta_{{ABM}}$={beta_val:.5f})"
 )
 
 plt.fill_between(
@@ -191,39 +212,41 @@ plt.fill_between(
 )
 
 plt.plot(
-    x, y_month,
+    x,
+    y_month,
     "s-",
     color=COLOR_OBS,
     linewidth=2.5,
     label="Observed data"
 )
 
-plt.ylabel("HAI counts", fontsize=18)
+plt.ylabel("Monthly HAI counts", fontsize=18)
 
 ax = plt.gca()
 ax.set_xticks(major_idx)
 ax.set_xticks(minor_idx, minor=True)
-ax.set_xticklabels([date_str[i] for i in major_idx], fontsize=18)
+ax.set_xticklabels([date_str[i] for i in major_idx], fontsize=14, rotation=30)
 
-plt.yticks(fontsize=18)
+plt.yticks(fontsize=16)
 
-ax.grid(True, which="major", axis="x", linestyle="-")
-ax.grid(True, which="minor", axis="x", linestyle="--")
-ax.grid(True, axis="y", linestyle="-")
+ax.grid(True, which="major", axis="x", linestyle="-", alpha=0.4)
+ax.grid(True, which="minor", axis="x", linestyle="--", alpha=0.3)
+ax.grid(True, axis="y", linestyle="-", alpha=0.4)
 
-plt.legend(fontsize=16)
+plt.legend(fontsize=14)
 plt.tight_layout()
 plt.show()
 
-# ==== 플롯: 누적 ====
+# ==== 플롯 2: 누적 incidence ====
 plt.figure(figsize=(9, 6))
 
 plt.plot(
-    x, c_mean,
+    x,
+    c_mean,
     "o-",
     color=COLOR_ABM,
     linewidth=2,
-    label=f"ABM cumulative (beta_ABM={beta_val:.5f})"
+    label=fr"ABM cumulative ($\beta_{{ABM}}$={beta_val:.5f})"
 )
 
 plt.fill_between(
@@ -236,7 +259,8 @@ plt.fill_between(
 )
 
 plt.plot(
-    x, y_cum,
+    x,
+    y_cum,
     "s-",
     color=COLOR_OBS,
     linewidth=2.5,
@@ -248,16 +272,16 @@ plt.ylabel("Cumulative HAI", fontsize=18)
 ax = plt.gca()
 ax.set_xticks(major_idx)
 ax.set_xticks(minor_idx, minor=True)
-ax.set_xticklabels([date_str[i] for i in major_idx], fontsize=18)
+ax.set_xticklabels([date_str[i] for i in major_idx], fontsize=14, rotation=30)
 
-plt.yticks(fontsize=18)
+plt.yticks(fontsize=16)
 
-ax.grid(True, which="major", axis="x", linestyle="-")
-ax.grid(True, which="minor", axis="x", linestyle="--")
-ax.grid(True, axis="y", linestyle="-")
+ax.grid(True, which="major", axis="x", linestyle="-", alpha=0.4)
+ax.grid(True, which="minor", axis="x", linestyle="--", alpha=0.3)
+ax.grid(True, axis="y", linestyle="-", alpha=0.4)
 ax.set_ylim(bottom=0)
 
-plt.legend(fontsize=16)
+plt.legend(fontsize=14)
 plt.tight_layout()
 plt.show()
 

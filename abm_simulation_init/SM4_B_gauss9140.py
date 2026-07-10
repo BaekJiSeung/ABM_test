@@ -266,10 +266,10 @@ def simulate_theta(beta, init_env, tau0,
 # %% ================== Step4: B기간 전체 36개월 누적 Gaussian MLE + 95% CI ==================
 
 # --- 설정 ---
-abm_csv = "../result/interv_prob_transmission_summary_B260_0.01-0.07.csv"
+abm_csv = "../result/interv_prob_transmission_summary_B9140_0.01-0.07.csv"
 
-init_env = 2
-tau0 = 60
+init_env = 9
+tau0 = 140
 
 theta_min, theta_max = 0.5, 6.0
 
@@ -579,7 +579,7 @@ df_res = pd.DataFrame(results)
 
 os.makedirs("sm_fit", exist_ok=True)
 
-out_csv = "sm_fit/theta_pairs_subset_cumGaussian_B260.csv"
+out_csv = "sm_fit/theta_pairs_subset_cumGaussian_B9140.csv"
 
 df_res.to_csv(
     out_csv,
@@ -605,11 +605,11 @@ import matplotlib.pyplot as plt
 # B setting
 # =========================
 
-theta_hat = 3.484925
+theta_hat = 3.374372
   # 여기에 B direct fitting 또는 mapping에서 얻은 theta 넣기
 
-init_env = 2
-tau0 = 60
+init_env = 9
+tau0 = 140
 
 # B버전 simulate_theta가 이미 정의되어 있어야 함
 days, daily_inc_hat, monthly_hat_df, comp_hat_df = simulate_theta(
@@ -715,8 +715,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # ===== 설정 =====
-csv_path = Path("sm_fit/theta_pairs_subset_cumGaussian_B260.csv")
-out_png  = Path("sm_fit/step4_betaabm_to_thetasm_plotB260.png")
+csv_path = Path("sm_fit/theta_pairs_subset_cumGaussian_B9140.csv")
+out_png  = Path("sm_fit/step4_betaabm_to_thetasm_plotB9140.png")
 
 # ===== 데이터 읽기 =====
 df = pd.read_csv(csv_path)

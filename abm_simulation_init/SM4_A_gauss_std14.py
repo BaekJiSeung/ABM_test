@@ -1,8 +1,6 @@
-# %% 가우시안 버전 0526
-# A6100 version
-# ABM summary std를 사용하는 weighted cumulative Gaussian version
-# 저장명은 기존과 동일하게 유지
 
+# ABM summary의 std를 사용하는 weighted cumulative Gaussian version
+# 저장명은 기존과 동일하게 유지_14 14일 버전 SA
 
 # %% ================== 준비(그대로 사용) ==================
 import numpy as np
@@ -32,6 +30,7 @@ def _make_AI_from_dates(pi_dates, days):
     for d in pi_dates:
         ts = pd.to_datetime(d)
         idx = idx_map.get(ts, None)
+
         if idx is not None:
             A[idx] += 1.0
 
@@ -52,9 +51,9 @@ def simulate_theta(beta, init_env, tau0,
 
     N_H, N_E = 19, 30
 
-    mu_S = 1/7
-    mu_HAI = 1/14
-    mu_I = 1/7
+    mu_S = 1/14
+    mu_HAI = 1/21
+    mu_I = 1/14
 
     p_wash = 0.90
     contacts_per_day = 108
@@ -219,10 +218,10 @@ def simulate_theta(beta, init_env, tau0,
 # %% ================== Step4: 누적 Gaussian MLE + 95% CI ==================
 
 # --- 설정 ---
-abm_csv = "../result/interv_prob_transmission_summary_A6100_0.01-0.07.csv"
+abm_csv = "../result/interv_prob_transmission_summary_A9140_0.01-0.07_14.csv"
 
-init_env = 6
-tau0 = 100
+init_env = 9
+tau0 = 140
 
 theta_min, theta_max = 1, 6
 
@@ -283,20 +282,17 @@ def make_cum_std_from_monthly_std(y_std):
     """
     월별 std를 누적 std로 근사.
 
-    누적 fitting이므로 std도 cumulative scale로 맞춤.
     독립 가정:
-        Var(C_t) = Var(Y_1 + ... + Y_t)
-                 ≈ Var(Y_1) + ... + Var(Y_t)
+    Var(C_1 + ... + C_t) = Var(C_1) + ... + Var(C_t)
 
     따라서:
-        cum_std = sqrt(cumsum(monthly_std^2))
+    cum_std_t = sqrt(cumsum(monthly_std_t^2))
     """
 
     y_std = np.asarray(y_std, dtype=float)
-
     cum_std = np.sqrt(np.cumsum(y_std ** 2))
 
-    # std가 0이면 likelihood에서 division by zero 발생하므로 보정
+    # std가 0이면 likelihood가 터지므로 작은 값으로 보정
     cum_std = np.maximum(cum_std, 1e-6)
 
     return cum_std
@@ -309,8 +305,7 @@ def negloglik_theta_cum_gaussian(theta, cum_obs, cum_std, init_env, tau0):
     cum_obs_t = cum_model_t(theta) + error_t
     error_t ~ N(0, cum_std_t^2)
 
-    여기서 cum_std는 ABM 반복 simulation의 월별 std를
-    cumulative scale로 근사한 값.
+    여기서 cum_std는 ABM 반복 simulation의 월별 std를 누적 std로 근사한 값.
     """
 
     _, cum_model = model_monthly_and_cum(
@@ -416,10 +411,10 @@ def fit_theta_cum_gaussian_for_one(beta_abm, y_mean, y_std):
     theta_hat, 95% CI, NLL_min, sigma_hat 반환.
     """
 
-    # 월별 mean -> 누적 mean
+    # 월별 평균 -> 누적 평균
     cum_obs = np.cumsum(y_mean)
 
-    # 월별 std -> 누적 std
+    # 월별 std -> 누적 std 근사
     cum_std = make_cum_std_from_monthly_std(y_std)
 
     theta_grid = np.linspace(theta_min, theta_max, 300)
@@ -434,18 +429,19 @@ def fit_theta_cum_gaussian_for_one(beta_abm, y_mean, y_std):
     theta_hat = float(theta_grid[idx])
     nll_min = float(vals[idx])
 
-    # sigma_hat 계산
-    # 기존 저장 컬럼 유지용: 참고용 cumulative RMSE
+    # sigma_hat은 기존처럼 참고용 RMSE로 계산
     _, cum_model_hat = model_monthly_and_cum(
         theta_hat,
         init_env=init_env,
         tau0=tau0
     )
 
-    m = min(len(cum_obs), len(cum_model_hat), len(cum_std))
+    m = min(len(cum_obs), len(cum_model_hat))
     resid = cum_obs[:m] - cum_model_hat[:m]
-
     sigma_hat = float(np.sqrt(np.mean(resid ** 2)))
+
+    # 참고용 weighted RMSE도 계산 가능
+    weighted_rmse = float(np.sqrt(np.mean((resid / cum_std[:m]) ** 2)))
 
     # 95% CI
     theta_low, theta_high = ci95_profile_theta_gaussian(
@@ -459,7 +455,7 @@ def fit_theta_cum_gaussian_for_one(beta_abm, y_mean, y_std):
         grid_n=200
     )
 
-    return theta_hat, theta_low, theta_high, nll_min, sigma_hat
+    return theta_hat, theta_low, theta_high, nll_min, sigma_hat, weighted_rmse
 
 
 # %% ================== 루프 실행: 각 beta_ABM별 theta_hat, CI 출력/저장 ==================
@@ -480,7 +476,7 @@ for b in beta_list:
     y_mean = row["mean_vec"]
     y_std = row["std_vec"]
 
-    theta_hat, theta_low, theta_high, nll_min, sigma_hat = fit_theta_cum_gaussian_for_one(
+    theta_hat, theta_low, theta_high, nll_min, sigma_hat, weighted_rmse = fit_theta_cum_gaussian_for_one(
         beta_abm,
         y_mean,
         y_std
@@ -490,7 +486,8 @@ for b in beta_list:
     print(
         f"  theta_hat = {theta_hat:.4f}, "
         f"95% CI = [{theta_low:.4f}, {theta_high:.4f}], "
-        f"sigma_hat = {sigma_hat:.4f}, "
+        f"sigma_hat(RMSE) = {sigma_hat:.4f}, "
+        f"weighted_RMSE = {weighted_rmse:.4f}, "
         f"NLL_cum_min = {nll_min:.2f}"
     )
 
@@ -500,6 +497,7 @@ for b in beta_list:
         "theta_low": theta_low,
         "theta_high": theta_high,
         "sigma_hat": sigma_hat,
+        "weighted_rmse": weighted_rmse,
         "neg_loglik_cum_min": nll_min,
         "init_env": init_env,
         "tau0": tau0,
@@ -512,7 +510,8 @@ df_res = pd.DataFrame(results)
 
 os.makedirs("sm_fit", exist_ok=True)
 
-out_csv = "sm_fit/theta_pairs_subset_cumGaussian_A6100.csv"
+# 저장명은 기존과 동일하게 유지
+out_csv = "sm_fit/theta_pairs_subset_cumGaussian_A9140_14.csv"
 
 df_res.to_csv(
     out_csv,
@@ -586,7 +585,7 @@ def simulate_theta(beta, init_env, tau0,
 
     deep_clean_period = 180
     iso_factor = 0.75
-    isol_time = 14.0
+    isol_time = 7.0
     sigma = 1.0 / isol_time   # shared HAI → iso HAI
 
     # ---- 시간축 ----
