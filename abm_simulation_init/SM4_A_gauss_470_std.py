@@ -1117,8 +1117,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # ===== 설정 =====
-csv_path = Path("sm_fit/theta_pairs_subset_cumGaussian_A9140_14.csv")
-out_png  = Path("sm_fit/step4_betaabm_to_thetasm_plotA9140_14.png")
+csv_path = Path("sm_fit/theta_pairs_subset_cumGaussian_A470.csv")
+out_png  = Path("sm_fit/step4_betaabm_to_thetasm_plotA470.png")
 
 # ===== 데이터 읽기 =====
 df = pd.read_csv(csv_path)
