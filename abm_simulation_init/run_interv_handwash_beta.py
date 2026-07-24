@@ -47,7 +47,8 @@ def main():
     # %% Variable settings
     variable_name = 'prob_transmission'
 
-    beta_values = np.round(np.arange(0.01, 0.0601, 0.005), 5)
+    #beta_values = np.round(np.arange(0.01, 0.0601, 0.005), 5)
+    beta_values = [0.03847]
     handwash_values = [0.8, 0.9, 0.95, 0.99]
 
     beta_tag1 = beta_values[0]
