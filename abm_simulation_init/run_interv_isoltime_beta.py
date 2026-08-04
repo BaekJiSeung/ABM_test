@@ -1,43 +1,51 @@
 # %% ================== run_interv_isoltime_beta.py ==================
 
+from model.cpe_model_month_lambda import CPE_Model_month
+from model.cpe_model_month_lambda import getTotalInfec
+from mesa.batchrunner import BatchRunnerMP
+from multiprocessing import freeze_support
 import os
+import time
 import pandas as pd
 import numpy as np
-from multiprocessing import freeze_support
-
+import warnings
 from mesa.datacollection import DataCollector
-from mesa.batchrunner import BatchRunnerMP
-
-from model.cpe_model_month_lambda import CPE_Model_month, getTotalInfec
 
 
 # --------------------------------------------------
-# Mesa DataCollector monkey patch
+# Mesa BatchRunnerMP에서 agent reporter 없어서 터지는 문제 방지
 # --------------------------------------------------
 def _safe_get_agent_vars_dataframe(self):
     return pd.DataFrame()
 
 DataCollector.get_agent_vars_dataframe = _safe_get_agent_vars_dataframe
 
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning, message="No agent reporters*")
 
-# --------------------------------------------------
-# main
-# --------------------------------------------------
+
 def main():
 
-    # -----------------------------
-    # settings
-    # -----------------------------
+    # %% Basic settings
     data_type = "A"
-
-    init_envc = 9
-    init_tau0 = 140
-
-    runtime = 30 * 19
-
     num_iter = 50
     nr_processes = 16
 
+    init_envc = 9
+    tau_offset_days = 140
+
+    runtime = 30 * 19   # A: 30*19, B: 30*36
+
+    probNewPatient = 0.003
+    isolationFactor = 0.75
+
+    washrate = 0.9
+    cleaningDay = 180
+
+    height = 11
+    width = 32
+
+    # %% Variable settings
     variable_name = "prob_transmission"
 
     beta_values = np.round(
@@ -45,70 +53,95 @@ def main():
         5
     )
 
-    # isolationTime intervention values
     isoltime_values = [6, 14, 20, 28]
 
     beta_tag1 = beta_values[0]
     beta_tag2 = beta_values[-1]
+
+    print("=" * 80)
+    print("START isolationTime intervention ABM run")
+    print("data_type:", data_type)
+    print("init_envc:", init_envc)
+    print("tau_offset_days:", tau_offset_days)
+    print("beta_values:", beta_values)
+    print("isoltime_values:", isoltime_values)
+    print("num_iter:", num_iter)
+    print("runtime days:", runtime)
+    print("nr_processes:", nr_processes)
+    print("=" * 80)
 
     # -----------------------------
     # fixed baseline parameters
     # -----------------------------
     fixed_params = {
         "data_type": data_type,
-        "init_envc": init_envc,
-        "init_tau0": init_tau0,
 
-        "height": 11,
-        "width": 32,
+        "prob_new_patient": probNewPatient,
+        "isolation_factor": isolationFactor,
 
-        "runtime": runtime,
+        "cleaningDay": cleaningDay,
+        "hcw_wash_rate": washrate,
 
-        "probNewPatient": 0.003,
-        "probTransmission": 0.0866,
+        "height": height,
+        "width": width,
 
-        "washrate": 0.9,
-        "cleanDay": 180,
-        "isolationFactor": 0.75,
-
-        # isolationTime은 variable_params에서 바꿈
-        # "isolationTime": 14,
+        "init_env": init_envc,
+        "tau_offset_days": tau_offset_days,
     }
 
+    # prob_transmission, isolation_time은 variable로 돌림
     variable_params = {
-        "probTransmission": beta_values,
-        "isolationTime": isoltime_values,
+        "prob_transmission": beta_values,
+        "isolation_time": isoltime_values,
     }
 
-    model_reporters = {
-        "TotalInfec": getTotalInfec,
-    }
+    # -----------------------------
+    # max_steps 계산
+    # -----------------------------
+    model = CPE_Model_month(
+        data_type=data_type,
+        prob_new_patient=probNewPatient,
+        prob_transmission=float(beta_values[0]),
+        isolation_factor=isolationFactor,
+        cleaningDay=cleaningDay,
+        hcw_wash_rate=washrate,
+        isolation_time=isoltime_values[0],
+        height=height,
+        width=width,
+        init_env=init_envc,
+        tau_offset_days=tau_offset_days
+    )
 
-    print("=" * 80)
-    print("START isolationTime intervention ABM run")
-    print("data_type:", data_type)
-    print("beta_values:", beta_values)
-    print("isoltime_values:", isoltime_values)
-    print("num_iter:", num_iter)
-    print("runtime:", runtime)
-    print("=" * 80)
+    max_steps = model.ticks_in_day * runtime
+
+    print("max_steps:", max_steps)
+
+    # -----------------------------
+    # Run
+    # -----------------------------
+    start_time = time.time()
 
     batch_run = BatchRunnerMP(
         CPE_Model_month,
+        nr_processes=nr_processes,
         variable_parameters=variable_params,
         fixed_parameters=fixed_params,
         iterations=num_iter,
-        max_steps=runtime,
-        model_reporters=model_reporters,
-        nr_processes=nr_processes
+        max_steps=max_steps,
+        display_progress=True,
+        model_reporters={
+            "HCW_related_infecs": getTotalInfec
+        }
     )
 
     batch_run.run_all()
 
-    print("done running")
-
     run_data = batch_run.get_model_vars_dataframe()
 
+    elapsed = time.time() - start_time
+
+    print("done running")
+    print("elapsed seconds:", elapsed)
     print("cols:", list(run_data.columns))
     print("run_data shape before reset:", run_data.shape)
 
@@ -121,22 +154,27 @@ def main():
 
     run_data["my_iteration"] = (
         run_data
-        .groupby(["isolationTime", "probTransmission"])
+        .groupby(["isolation_time", "prob_transmission"])
         .cumcount()
     )
 
+    # 각 isolation_time-beta 조합마다 num_iter개씩 있는지 확인
     check_counts = (
         run_data
-        .groupby(["isolationTime", "probTransmission"])
+        .groupby(["isolation_time", "prob_transmission"])
         .size()
         .reset_index(name="n")
     )
 
-    print("check_counts head:")
-    print(check_counts.head())
-
+    print("\ncheck counts:")
+    print(check_counts.head(40))
     print("min n:", check_counts["n"].min())
     print("max n:", check_counts["n"].max())
+
+    if check_counts["n"].min() != num_iter or check_counts["n"].max() != num_iter:
+        print("[WARNING] Some parameter settings do not have num_iter runs.")
+    else:
+        print("[OK] Every parameter setting has num_iter runs.")
 
     # -----------------------------
     # result directory
@@ -155,35 +193,51 @@ def main():
     long_csv_path = os.path.join(
         result_dir,
         f"interv_{variable_name}_LONG_"
-        f"{data_type}{init_envc}{init_tau0}_"
+        f"{data_type}{init_envc}{tau_offset_days}_"
         f"{beta_tag1}-{beta_tag2}_isoltimeALL.csv"
     )
 
     run_data.to_csv(long_csv_path, index=False, encoding="utf-8")
-    print("saved LONG raw:", long_csv_path)
+    print("\nsaved LONG raw:", long_csv_path)
 
     # -----------------------------
-    # save wide csv by isolationTime
-    # rows = iteration
-    # columns = beta
-    # values = TotalInfec daily list
+    # save wide csv by isolation_time
+    # row = iteration
+    # column = beta
+    # value = HCW_related_infecs daily list
+    # 정상 shape = (50, 9)
     # -----------------------------
     for isol_time in isoltime_values:
 
-        print("\nSaving isolationTime =", isol_time)
+        print("\n" + "=" * 60)
+        print("Saving isolation_time =", isol_time)
+        print("=" * 60)
 
         sub = run_data.loc[
-            run_data["isolationTime"] == isol_time
+            run_data["isolation_time"] == isol_time
         ].copy()
+
+        sub_counts = (
+            sub
+            .groupby("prob_transmission")
+            .size()
+            .reset_index(name="n")
+        )
+
+        print("sub counts:")
+        print(sub_counts)
+        print("sub min n:", sub_counts["n"].min())
+        print("sub max n:", sub_counts["n"].max())
 
         df_wide = sub.pivot_table(
             index="my_iteration",
-            columns="probTransmission",
-            values="TotalInfec",
+            columns="prob_transmission",
+            values="HCW_related_infecs",
             aggfunc="first"
-        )
+        ).reset_index(drop=True)
 
-        df_wide = df_wide.sort_index(axis=0).sort_index(axis=1)
+        df_wide.columns.name = None
+        df_wide = df_wide.sort_index(axis=1)
 
         print("df_wide shape:", df_wide.shape)
         print(df_wide.head())
@@ -191,12 +245,19 @@ def main():
         out_csv = os.path.join(
             result_dir,
             f"interv_{variable_name}_"
-            f"{data_type}{init_envc}{init_tau0}_"
+            f"{data_type}{init_envc}{tau_offset_days}_"
             f"{beta_tag1}-{beta_tag2}_isoltime{isol_time}.csv"
         )
 
         df_wide.to_csv(out_csv, index=False, encoding="utf-8")
         print("saved:", out_csv)
+
+        if df_wide.shape != (num_iter, len(beta_values)):
+            print("[WARNING] Saved file shape is not expected.")
+            print("expected:", (num_iter, len(beta_values)))
+            print("actual:", df_wide.shape)
+        else:
+            print("[OK] Saved file shape is correct.")
 
     print("\nDONE isolationTime intervention ABM run")
 

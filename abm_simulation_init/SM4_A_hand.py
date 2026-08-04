@@ -1362,3 +1362,139 @@ plt.show()
 
 print("saved:", out_fig)
 # %%
+
+
+
+
+
+
+
+
+# %% ==============================
+# Step 4 validation: ABM vs SM cumulative curves
+# for each handwash and each beta_ABM
+# ==============================
+
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# -----------------------------
+# settings
+# -----------------------------
+data_type = "A"
+init_env = 9
+tau0 = 140 
+
+handwash_values = [0.8, 0.9, 0.95, 0.99]
+
+beta_values = np.round(np.arange(0.02, 0.0601, 0.005), 5)
+
+start_month = "2017-01"
+
+smfit_dir = "sm_fit"
+fig_dir = os.path.join(smfit_dir, "figures")
+os.makedirs(fig_dir, exist_ok=True)
+
+# -----------------------------
+# plot cumulative curves
+# -----------------------------
+for wash in handwash_values:
+
+    print("\n" + "=" * 80)
+    print(f"Plot cumulative curves: handwash = {wash}")
+    print("=" * 80)
+
+    df_abm = load_abm_summary(wash)
+    df_map = load_mapping(wash)
+
+    fig, axes = plt.subplots(3, 3, figsize=(15, 11))
+    axes = axes.flatten()
+
+    for ax, beta_abm in zip(axes, beta_values):
+
+        # --- ABM summary row ---
+        row_abm = df_abm.loc[np.isclose(df_abm["beta"].astype(float), beta_abm)]
+
+        if row_abm.empty:
+            ax.set_title(f"beta={beta_abm:.3f}\n(no ABM row)")
+            ax.axis("off")
+            continue
+
+        row_abm = row_abm.iloc[0]
+
+        abm_monthly = row_abm["mean_vec"]
+        n_months = len(abm_monthly)
+        months = get_month_axis(n_months, start_month=start_month)
+
+        abm_cum = np.cumsum(abm_monthly)
+
+        # --- beta_ABM -> beta_SM mapping ---
+        x_map = df_map["beta_abm"].to_numpy(dtype=float)
+        y_map = df_map["theta_hat"].to_numpy(dtype=float)
+
+        beta_sm = float(np.interp(beta_abm, x_map, y_map))
+
+        # --- surrogate run ---
+        sm_monthly = get_surrogate_monthly(
+            beta_sm=beta_sm,
+            wash=wash,
+            n_months=n_months
+        )
+
+        sm_cum = np.cumsum(sm_monthly)
+
+        # --- RMSE ---
+        cum_rmse = np.sqrt(np.mean((abm_cum - sm_cum) ** 2))
+
+        # --- plot ---
+        ax.plot(
+            months,
+            abm_cum,
+            "o-",
+            linewidth=2,
+            markersize=4,
+            label="ABM cumulative"
+        )
+
+        ax.plot(
+            months,
+            sm_cum,
+            "s--",
+            linewidth=2,
+            markersize=4,
+            label="SM cumulative"
+        )
+
+        ax.set_title(
+            f"$\\beta_{{ABM}}$={beta_abm:.3f}\n"
+            f"$\\beta_{{SM}}$={beta_sm:.3f}, RMSE={cum_rmse:.2f}",
+            fontsize=10
+        )
+        ax.grid(alpha=0.3)
+        ax.tick_params(axis="x", rotation=45)
+
+    # 혹시 beta 개수가 9보다 적거나 많을 때 대비
+    for j in range(len(beta_values), len(axes)):
+        axes[j].axis("off")
+
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", ncol=2, fontsize=12)
+
+    fig.suptitle(
+        f"Step 4 validation: ABM vs SM cumulative curves (p_wash={wash})",
+        fontsize=16
+    )
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+    out_png = os.path.join(
+        fig_dir,
+        f"step4_validation_cumulative_curves_{data_type}{init_env}{tau0}_handwash{wash_to_tag(wash)}.png"
+    )
+
+    plt.savefig(out_png, dpi=300, bbox_inches="tight")
+    plt.show()
+
+    print("saved:", out_png)
+# %%
