@@ -232,9 +232,9 @@ variable_name = "prob_transmission"
 
 init_envc = 9
 init_tau0 = 140
-
-beta_tag1 = 0.01
-beta_tag2 = 0.06
+beta_values = [0.03847]
+beta_tag1 = beta_values[0]
+beta_tag2 = beta_values[-1]
 
 handwash_values = [0.8, 0.9,0.95, 0.99]
 
