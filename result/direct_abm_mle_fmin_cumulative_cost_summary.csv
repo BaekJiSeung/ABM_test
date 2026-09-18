@@ -1,0 +1,2 @@
+method,data_type,likelihood,data_used,std_source,sd_floor,beta_init,beta_lower,beta_upper,optimizer_beta_hat,optimizer_nll_hat,best_evaluated_beta,best_evaluated_nll,best_evaluated_sse,unique_beta_evaluations,repetitions_per_beta,cpu_processes,total_abm_simulations
+Direct ABM MLE with Nelder-Mead,A,Gaussian NLL,monthly cumulative HAI,std from 50 ABM cumulative trajectories for each beta,1e-06,0.04,0.03,0.05,0.03801,61.81456764547412,0.03801,61.81456764547412,580.3263999999999,19,50,25,950

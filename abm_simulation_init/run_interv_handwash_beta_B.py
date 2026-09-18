@@ -30,11 +30,11 @@ def main():
     # %% Basic settings
     data_type = "B"
     num_iter = 50
-    nr_processes = 16
+    nr_processes = 24
 
     # selected initial condition setting
-    init_envc = 9
-    init_tau0 = 140
+    init_envc = 2
+    init_tau0 = 60
 
     # baseline intervention settings
     cleanDay = 180
@@ -55,12 +55,12 @@ def main():
 
     # Step4 mapping용 beta_ABM grid
     beta_values = np.round(np.arange(0.02, 0.0601, 0.005), 5)
-
+    beta_values = [0.04136]
     # handwashing intervention values
     handwash_values = [0.8, 0.9, 0.95, 0.99]
 
-    beta_tag1 = f"{beta_values[0]:.2f}"
-    beta_tag2 = f"{beta_values[-1]:.2f}"
+    beta_tag1 = f"{beta_values[0]:.5f}"
+    beta_tag2 = f"{beta_values[-1]:.5f}"
 
     # max_steps용 dummy value
     # 실제 run에서는 variable_params의 prob_transmission이 사용됨
@@ -260,7 +260,7 @@ def main():
         ).reset_index(drop=True)
 
         df_wide.columns.name = None
-        df_wide = df_wide.sort_index(axis=1)
+        df_wide = df_wide.reindex(columns=beta_values)
 
         wash_tag = str(wash).replace(".", "p")
 

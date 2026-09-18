@@ -1822,3 +1822,6 @@ print("saved ->", out_png2)
 show_cols = [clean_col, "beta_abm", theta_col, low_col, high_col]
 print(df[show_cols].sort_values([clean_col, "beta_abm"]).to_string(index=False))
 # %%
+import os
+print(os.cpu_count())
+# %%

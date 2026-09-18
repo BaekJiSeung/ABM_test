@@ -1,4 +1,4 @@
-# %% ================== run_interv_isoltime_beta.py ==================
+# %% ================== run_interv_isoltime_beta_B.py ==================
 
 from model.cpe_model_month_lambda import CPE_Model_month
 from model.cpe_model_month_lambda import getTotalInfec
@@ -18,6 +18,7 @@ from mesa.datacollection import DataCollector
 def _safe_get_agent_vars_dataframe(self):
     return pd.DataFrame()
 
+
 DataCollector.get_agent_vars_dataframe = _safe_get_agent_vars_dataframe
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -27,20 +28,24 @@ warnings.filterwarnings("ignore", category=UserWarning, message="No agent report
 def main():
 
     # %% Basic settings
-    data_type = "A"
+    data_type = "B"
     num_iter = 50
-    nr_processes = 16
+    nr_processes = 24
 
-    init_envc = 9
-    tau_offset_days = 140
+    # selected initial condition setting for Period B
+    init_envc = 2
+    init_tau0 = 60
 
-    runtime = 30 * 19   # A: 30*19, B: 30*36
+    # baseline intervention settings
+    cleanDay = 180
+    washrate = 0.9
 
+    # B period: 2021 Jan. – 2023 Dec. = 36 months
+    runtime = 30 * 36
+
+    # fixed model parameters
     probNewPatient = 0.003
     isolationFactor = 0.75
-
-    washrate = 0.9
-    cleaningDay = 180
 
     height = 11
     width = 32
@@ -48,75 +53,91 @@ def main():
     # %% Variable settings
     variable_name = "prob_transmission"
 
-    #beta_values = np.round(        np.arange(0.02, 0.0601, 0.005),        5    )
-    beta_values = [0.03847]
-    isoltime_values = [6, 14, 20, 28]
+    # Step4 mapping용 beta_ABM grid
+    beta_values = np.round(np.arange(0.02, 0.0601, 0.005), 5)
+    beta_values = [0.04136]
+    # isolation intervention values
+    # paper에서는 average isolation delay = 3, 7, 10, 14 days로 설명
+    isolation_values = [6, 14, 20, 28]
 
-    beta_tag1 = beta_values[0]
-    beta_tag2 = beta_values[-1]
+    beta_tag1 = f"{beta_values[0]:.5f}"
+    beta_tag2 = f"{beta_values[-1]:.5f}"
+
+    # max_steps용 dummy value
+    probTransmission_dummy = float(beta_values[0])
+    isolationTime_dummy = int(isolation_values[0])
 
     print("=" * 80)
-    print("START isolationTime intervention ABM run")
+    print("START isolation intervention ABM run - Period B")
     print("data_type:", data_type)
     print("init_envc:", init_envc)
-    print("tau_offset_days:", tau_offset_days)
-    print("beta_values:", beta_values)
-    print("isoltime_values:", isoltime_values)
-    print("num_iter:", num_iter)
+    print("tau_offset_days:", init_tau0)
+    print("cleaningDay:", cleanDay)
+    print("washrate:", washrate)
     print("runtime days:", runtime)
+    print("num_iter:", num_iter)
     print("nr_processes:", nr_processes)
+    print("beta values:", beta_values)
+    print("isolation values:", isolation_values)
+    print("average isolation delays:", [x / 2 for x in isolation_values])
+    print("number of beta values:", len(beta_values))
+    print("number of isolation values:", len(isolation_values))
+    print("total parameter settings:", len(beta_values) * len(isolation_values))
+    print("total simulations:", len(beta_values) * len(isolation_values) * num_iter)
     print("=" * 80)
 
-    # -----------------------------
+    # --------------------------------------------------
     # fixed baseline parameters
-    # -----------------------------
+    # --------------------------------------------------
     fixed_params = {
         "data_type": data_type,
 
         "prob_new_patient": probNewPatient,
         "isolation_factor": isolationFactor,
 
-        "cleaningDay": cleaningDay,
+        "cleaningDay": cleanDay,
         "hcw_wash_rate": washrate,
 
         "height": height,
         "width": width,
 
         "init_env": init_envc,
-        "tau_offset_days": tau_offset_days,
+        "tau_offset_days": init_tau0,
     }
 
     # prob_transmission, isolation_time은 variable로 돌림
     variable_params = {
         "prob_transmission": beta_values,
-        "isolation_time": isoltime_values,
+        "isolation_time": isolation_values,
     }
 
-    # -----------------------------
-    # max_steps 계산
-    # -----------------------------
+    # --------------------------------------------------
+    # max_steps 계산용 model
+    # --------------------------------------------------
     model = CPE_Model_month(
         data_type=data_type,
         prob_new_patient=probNewPatient,
-        prob_transmission=float(beta_values[0]),
+        prob_transmission=probTransmission_dummy,
         isolation_factor=isolationFactor,
-        cleaningDay=cleaningDay,
+        cleaningDay=cleanDay,
         hcw_wash_rate=washrate,
-        isolation_time=isoltime_values[0],
+        isolation_time=isolationTime_dummy,
         height=height,
         width=width,
         init_env=init_envc,
-        tau_offset_days=tau_offset_days
+        tau_offset_days=init_tau0,
     )
 
     max_steps = model.ticks_in_day * runtime
 
-    print("max_steps:", max_steps)
+    print("\nmax_steps:", max_steps)
 
-    # -----------------------------
+    # --------------------------------------------------
     # Run
-    # -----------------------------
+    # --------------------------------------------------
     start_time = time.time()
+
+    print("\nnow run")
 
     batch_run = BatchRunnerMP(
         CPE_Model_month,
@@ -137,17 +158,17 @@ def main():
 
     elapsed = time.time() - start_time
 
-    print("done running")
+    print("\ndone running")
     print("elapsed seconds:", elapsed)
-    print("cols:", list(run_data.columns))
     print("run_data shape before reset:", run_data.shape)
+    print("cols:", list(run_data.columns))
+    print(run_data.head())
 
-    # --------------------------------------------------
-    # IMPORTANT:
-    # BatchRunnerMP의 Run column을 iteration으로 쓰면 안 됨.
-    # 직접 groupby cumcount로 iteration 생성.
-    # --------------------------------------------------
     run_data = run_data.reset_index(drop=True)
+
+    run_data["init_env_used"] = init_envc
+    run_data["tau_offset_days_used"] = init_tau0
+    run_data["avg_isolation_delay"] = run_data["isolation_time"].astype(float) / 2
 
     run_data["my_iteration"] = (
         run_data
@@ -155,7 +176,10 @@ def main():
         .cumcount()
     )
 
-    # 각 isolation_time-beta 조합마다 num_iter개씩 있는지 확인
+    iter_col = "my_iteration"
+
+    print("\niteration column:", iter_col)
+
     check_counts = (
         run_data
         .groupby(["isolation_time", "prob_transmission"])
@@ -164,7 +188,7 @@ def main():
     )
 
     print("\ncheck counts:")
-    print(check_counts.head(40))
+    print(check_counts.head(50))
     print("min n:", check_counts["n"].min())
     print("max n:", check_counts["n"].max())
 
@@ -173,9 +197,6 @@ def main():
     else:
         print("[OK] Every parameter setting has num_iter runs.")
 
-    # -----------------------------
-    # result directory
-    # -----------------------------
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
     except NameError:
@@ -184,34 +205,32 @@ def main():
     result_dir = os.path.join(base_dir, "..", "result")
     os.makedirs(result_dir, exist_ok=True)
 
-    # -----------------------------
-    # save LONG raw
-    # -----------------------------
+    # --------------------------------------------------
+    # 1) LONG raw 파일 저장
+    # --------------------------------------------------
     long_csv_path = os.path.join(
         result_dir,
         f"interv_{variable_name}_LONG_"
-        f"{data_type}{init_envc}{tau_offset_days}_"
+        f"{data_type}{init_envc}{init_tau0}_"
         f"{beta_tag1}-{beta_tag2}_isoltimeALL.csv"
     )
 
     run_data.to_csv(long_csv_path, index=False, encoding="utf-8")
-    print("\nsaved LONG raw:", long_csv_path)
+    print("\nsaved LONG raw ->", long_csv_path)
 
-    # -----------------------------
-    # save wide csv by isolation_time
-    # row = iteration
-    # column = beta
-    # value = HCW_related_infecs daily list
-    # 정상 shape = (50, 9)
-    # -----------------------------
-    for isol_time in isoltime_values:
+    # --------------------------------------------------
+    # 2) isolation_time별 wide csv 저장
+    # --------------------------------------------------
+    for isol_time in isolation_values:
+
+        avg_delay = isol_time / 2
 
         print("\n" + "=" * 60)
-        print("Saving isolation_time =", isol_time)
+        print(f"Saving isolation_time = {isol_time}, average delay = {avg_delay}")
         print("=" * 60)
 
         sub = run_data.loc[
-            run_data["isolation_time"] == isol_time
+            run_data["isolation_time"].astype(int) == isol_time
         ].copy()
 
         sub_counts = (
@@ -227,36 +246,38 @@ def main():
         print("sub max n:", sub_counts["n"].max())
 
         df_wide = sub.pivot_table(
-            index="my_iteration",
-            columns="prob_transmission",
+            index=iter_col,
+            columns=variable_name,
             values="HCW_related_infecs",
             aggfunc="first"
         ).reset_index(drop=True)
 
         df_wide.columns.name = None
-        df_wide = df_wide.sort_index(axis=1)
+        df_wide = df_wide.reindex(columns=beta_values)
 
-        print("df_wide shape:", df_wide.shape)
-        print(df_wide.head())
-
-        out_csv = os.path.join(
+        csv_path = os.path.join(
             result_dir,
             f"interv_{variable_name}_"
-            f"{data_type}{init_envc}{tau_offset_days}_"
+            f"{data_type}{init_envc}{init_tau0}_"
             f"{beta_tag1}-{beta_tag2}_isoltime{isol_time}.csv"
         )
 
-        df_wide.to_csv(out_csv, index=False, encoding="utf-8")
-        print("saved:", out_csv)
+        df_wide.to_csv(csv_path, index=False, encoding="utf-8")
 
-        if df_wide.shape != (num_iter, len(beta_values)):
+        print("df_wide shape:", df_wide.shape)
+        print(df_wide.head())
+        print("saved ->", csv_path)
+
+        expected_shape = (num_iter, len(beta_values))
+
+        if df_wide.shape != expected_shape:
             print("[WARNING] Saved file shape is not expected.")
-            print("expected:", (num_iter, len(beta_values)))
+            print("expected:", expected_shape)
             print("actual:", df_wide.shape)
         else:
             print("[OK] Saved file shape is correct.")
 
-    print("\nDONE isolationTime intervention ABM run")
+    print("\nDONE isolation intervention ABM run - Period B")
 
 
 if __name__ == "__main__":
