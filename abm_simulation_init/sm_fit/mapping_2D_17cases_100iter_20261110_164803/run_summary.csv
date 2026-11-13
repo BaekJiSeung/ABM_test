@@ -1,0 +1,2 @@
+total_cases,completed_cases,failed_cases,failed_ids,n_jobs,grid_points_per_case,local_starts,maxiter,maxfun,ftol,csv_atol,wall_time_min
+17,17,0,,17,220,3,100,3000,1e-08,1e-07,50.61724013000106

@@ -1,0 +1,2 @@
+method,data_type,likelihood,data_used,std_source,sd_floor,beta_init_reference,beta_lower,beta_upper,xatol,optimizer_success,optimizer_beta_hat,optimizer_nll_hat,best_evaluated_beta,best_evaluated_nll,best_evaluated_sse,unique_beta_evaluations,repetitions_per_beta,cpu_processes,total_abm_simulations
+Direct ABM MLE with bounded minimize_scalar,A,Gaussian NLL,monthly cumulative HAI,std from 50 ABM cumulative trajectories for each beta,1e-05,0.04,0.01,0.07,0.0001,True,0.03371,59.40466691472792,0.03371,59.40466691472792,895.7099999999999,14,50,25,700

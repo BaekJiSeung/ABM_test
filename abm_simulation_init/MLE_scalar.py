@@ -213,17 +213,17 @@ def main():
     # --------------------------------------------------
     beta_init = 0.04
 
-    beta_lower = 0.03
-    beta_upper = 0.05
+    beta_lower = 0.01
+    beta_upper = 0.07
 
-    sd_floor = 1e-6
+    sd_floor = 1e-5
 
     # bounded scalar optimization
-    maxiter = 20
+    maxiter = 50
 
     # beta 방향 종료 tolerance
     # 더 세밀하게 찾으려면 1e-5 정도 사용
-    xatol = 0.001
+    xatol = 0.0001
 
     print("=" * 80)
     print("START direct ABM MLE with bounded scalar optimization")

@@ -1,0 +1,2 @@
+﻿total_cases,completed_cases,failed_cases,failed_ids,n_jobs,beta_grid_points,p_grid_points,beta_min,beta_max,p_min,p_max,grid_points_per_case,total_grid_points,top_n,local_optimization,csv_atol,wall_time_min
+17,17,0,,17,200,70,0.5,12.0,0.3,1.0,14000,238000,3,False,1e-07,713.3001627633348

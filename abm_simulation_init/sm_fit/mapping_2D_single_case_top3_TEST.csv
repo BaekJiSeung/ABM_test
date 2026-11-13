@@ -1,0 +1,2 @@
+beta_abm,p_abm,beta_sm,p_sm,nll,selected,success,grid_nll,grid_evaluations,local_evaluations,elapsed_min
+0.04,0.9,10.978482570191103,0.9890378937288696,60.6298834847568,Local 3,True,60.64929859770856,220,2082,97.34517047999931

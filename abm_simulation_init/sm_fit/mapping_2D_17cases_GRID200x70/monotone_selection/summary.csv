@@ -1,0 +1,9 @@
+﻿sweep,axis,objective,strict,n_cases,sum_delta_nll,max_delta_nll,mean_delta_nll,file
+beta_sweep,beta_sm,minsum,False,13,0.3113564296117417,0.06926366077247792,0.02395049458551859,beta_sweep_beta_sm_minsum.csv
+beta_sweep,beta_sm,minimax,False,13,0.3166547197838767,0.06763154649441105,0.024358055367990517,beta_sweep_beta_sm_minimax.csv
+beta_sweep,p_sm,minsum,False,13,0.3913373197243004,0.11467659796043961,0.03010287074802311,beta_sweep_p_sm_minsum.csv
+beta_sweep,p_sm,minimax,False,13,0.47509373144326794,0.07303550015302562,0.03654567164948215,beta_sweep_p_sm_minimax.csv
+handwash_sweep,beta_sm,minsum,False,4,0.0054473591364825324,0.0038586099279882546,0.0013618397841206331,handwash_sweep_beta_sm_minsum.csv
+handwash_sweep,beta_sm,minimax,False,4,0.0054473591364825324,0.0038586099279882546,0.0013618397841206331,handwash_sweep_beta_sm_minimax.csv
+handwash_sweep,p_sm,minsum,False,4,0.0013815288338392406,0.0013815288338392406,0.00034538220845981016,handwash_sweep_p_sm_minsum.csv
+handwash_sweep,p_sm,minimax,False,4,0.0013815288338392406,0.0013815288338392406,0.00034538220845981016,handwash_sweep_p_sm_minimax.csv
